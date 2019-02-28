@@ -42,7 +42,7 @@ exports.getByUuid = function(uuid, connection = mysql.pool) {
  * @param {Number} limit The amount of rows to retrieve. Defaults to 10
  * @param {String} orderBy How to order the returned rows. Defaults to "name"
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to the coin data if it's successful
+ * @returns {Promise} A promise that resolves to a list of coin data if it's successful
  */
 exports.getListByName = function(name, previousId = 0, limit = 10, orderBy = 'name', connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
@@ -69,13 +69,13 @@ exports.getListByName = function(name, previousId = 0, limit = 10, orderBy = 'na
  * @param {String} name The name to use for the coin
  * @param {String} symbol The symbol to use for the coin
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to true if the coin is created successfully
+ * @returns {Promise} A promise that resolves to the inserted ID  if the coin is created successfully
  */
 exports.create = function(name, symbol, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
         connection.query('INSERT INTO `coin` (name, symbol, uuid) VALUES (?, ?, UUID_TO_BIN(UUID()))', [name, symbol], function(err, result, fields) {
             if(err) return reject(err);
-            resolve(true);
+            resolve(result.insertId);
         });
     });
 };
@@ -86,13 +86,13 @@ exports.create = function(name, symbol, connection = mysql.pool) {
  * @param {Number} id The ID of the coin being updated
  * @param {String} newName The new name to set for the coin
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to true if the coin is updated successfully
+ * @returns {Promise} A promise that resolves to the changed id if the coin is updated successfully
  */
 exports.updateName = function(id, newName, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
         connection.query('UPDATE `coin` SET `name` = ? WHERE `id` = ?', [newName, id], function(err, result, fields) {
             if(err) return reject(err);
-            resolve(true);
+            resolve(id);
         });
     });
 };
@@ -103,13 +103,13 @@ exports.updateName = function(id, newName, connection = mysql.pool) {
  * @param {Number} id The ID of the coin being updated
  * @param {String} newSymbol The new symbol to set for the coin
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to true if the coin is updated successfully
+ * @returns {Promise} A promise that resolves to the changed id if the coin is updated successfully
  */
 exports.updateSymbol = function(id, newSymbol, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
         connection.query('UPDATE `coin` SET `symbol` = ? WHERE `id` = ?', [newSymbol, id], function(err, result, fields) {
             if(err) return reject(err);
-            resolve(true);
+            resolve(id);
         });
     });
 };

@@ -39,9 +39,9 @@ exports.getByUuid = function(uuid, connection = mysql.pool) {
  *
  * @param {String} email The email string to look for
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to the user data if it's successful
+ * @returns {Promise} A promise that resolves to a list of user data if it's successful
  */
-exports.getByEmail = function(email, connection = mysql.pool) {
+exports.getListByEmail = function(email, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
         connection.query('SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `email` = ?', [email], function(err, rows, fields) {
             if(err) return reject(err);
@@ -59,7 +59,7 @@ exports.getByEmail = function(email, connection = mysql.pool) {
  * @param {Number} limit The amount of rows to retrieve. Defaults to 10
  * @param {String} orderBy How to order the returned rows. Defaults to "name"
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to the user data if it's successful
+ * @returns {Promise} A promise that resolves to a list of user data if it's successful
  */
 exports.getListByName = function(name, previousId = 0, limit = 10, orderBy = 'name', connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
@@ -87,7 +87,7 @@ exports.getListByName = function(name, previousId = 0, limit = 10, orderBy = 'na
  * @param {String} password The password to use for the user
  * @param {String} name The name to use for the user
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to inserted ID in the table if the user is created successfully
+ * @returns {Promise} A promise that resolves to the inserted ID in the table if the user is created successfully
  */
 exports.create = function(email, password, name, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
@@ -104,13 +104,13 @@ exports.create = function(email, password, name, connection = mysql.pool) {
  * @param {Number} id The ID of the user being updated
  * @param {String} newEmail The new email to set for the user
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to true if the user is updated successfully
+ * @returns {Promise} A promise that resolves to the changed id if the user is updated successfully
  */
 exports.updateEmail = function(id, newEmail, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
         connection.query('UPDATE `user` SET `email` = ? WHERE `id` = ?', [newEmail, id], function(err, result, fields) {
             if(err) return reject(err);
-            resolve(true);
+            resolve(id);
         });
     });
 };
@@ -121,13 +121,13 @@ exports.updateEmail = function(id, newEmail, connection = mysql.pool) {
  * @param {Number} id The ID of the user being updated
  * @param {String} newName The new name to set for the user
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to true if the user is updated successfully
+ * @returns {Promise} A promise that resolves to the changed id if the user is updated successfully
  */
 exports.updateName = function(id, newName, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
         connection.query('UPDATE `user` SET `name` = ? WHERE `id` = ?', [newName, id], function(err, result, fields) {
             if(err) return reject(err);
-            resolve(true);
+            resolve(id);
         });
     });
 };
