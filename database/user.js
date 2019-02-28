@@ -9,7 +9,7 @@ const mysql = require('./mysql');
  */
 exports.getById = function(id, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
-        connection.query('SELECT id, email, password, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `id` = ?', [id], function(err, rows, fields) {
+        connection.query('SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `id` = ?', [id], function(err, rows, fields) {
             if(err) return reject(err);
             if(rows[0] === undefined) return reject(new Error('User not found'));
             resolve(rows[0]);
@@ -26,7 +26,7 @@ exports.getById = function(id, connection = mysql.pool) {
  */
 exports.getByUuid = function(uuid, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
-        connection.query('SELECT id, email, password, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `uuid` = UUID_TO_BIN(?)', [uuid], function(err, rows, fields) {
+        connection.query('SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `uuid` = UUID_TO_BIN(?)', [uuid], function(err, rows, fields) {
             if(err) return reject(err);
             if(rows[0] === undefined) return reject(new Error('User not found'));
             resolve(rows[0]);
@@ -43,7 +43,7 @@ exports.getByUuid = function(uuid, connection = mysql.pool) {
  */
 exports.getByEmail = function(email, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
-        connection.query('SELECT id, email, password, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `email` = ?', [email], function(err, rows, fields) {
+        connection.query('SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `email` = ?', [email], function(err, rows, fields) {
             if(err) return reject(err);
             if(rows[0] === undefined) return reject(new Error('User not found'));
             resolve(rows[0]);
@@ -52,7 +52,7 @@ exports.getByEmail = function(email, connection = mysql.pool) {
 };
 
 /**
- * Get a list of users by their Name
+ * Get a list of users by their name
  *
  * @param {String} name The name string to look for
  * @param {Number} previousId The row id to start looking. Used for pagination, and defaults to 0
@@ -66,11 +66,11 @@ exports.getListByName = function(name, previousId = 0, limit = 10, orderBy = 'na
         let query;
         let parameters;
         if(previousId === 0){
-            query = 'SELECT id, email, password, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `name` = ? ORDER BY ? LIMIT ?';
+            query = 'SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `name` = ? ORDER BY ? LIMIT ?';
             parameters = [name, orderBy, limit];
         }
         else{
-            query = 'SELECT id, email, password, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `id` > ? AND `name` = ? ORDER BY ? LIMIT ?';
+            query = 'SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `id` > ? AND `name` = ? ORDER BY ? LIMIT ?';
             parameters = [previousId, name, orderBy, limit];
         }
         connection.query(query, parameters, function(err, rows, fields) {
@@ -85,14 +85,15 @@ exports.getListByName = function(name, previousId = 0, limit = 10, orderBy = 'na
  *
  * @param {String} email The email to use for the user. Must be unique or it returns an error
  * @param {String} password The password to use for the user
+ * @param {String} name The name to use for the user
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to true if the user is created successfully
+ * @returns {Promise} A promise that resolves to inserted ID in the table if the user is created successfully
  */
-exports.create = function(email, password, connection = mysql.pool) {
+exports.create = function(email, password, name, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
-        connection.query('INSERT INTO `user` (email, password, uuid) VALUES (?, ?, UUID_TO_BIN(UUID()))', [email, password], function(err, result, fields) {
+        connection.query('INSERT INTO `user` (email, password, name, uuid) VALUES (?, ?, ?, UUID_TO_BIN(UUID()))', [email, password, name], function(err, result, fields) {
             if(err) return reject(err);
-            resolve(true);
+            resolve(result.insertId);
         });
     });
 };

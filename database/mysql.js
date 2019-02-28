@@ -115,3 +115,14 @@ exports.getConnection = function(callback) {
         callback(err, connection);
     });
 };
+
+exports.commitTransaction = function(connection) {
+    return new Promise(function(resolve, reject) {
+        connection.commit(function(err) {
+            if(err) {
+                return reject(err);
+            }
+            return resolve(true);
+        });
+    });
+};
