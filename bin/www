@@ -1,0 +1,89 @@
+#!/usr/bin/env node
+const app = require('../app');
+const http = require('http');
+const cluster = require('cluster');
+
+if(cluster.isMaster){
+  console.log(`Master process started on ${process.pid}`);
+  // If no amount is specified in the environment variables, default to number of cores
+  const processes = process.env.PROCESSES || require('os').cpus().length;
+
+  for(let i = 0; i < processes; i++){
+    cluster.fork();
+  }
+
+  // Notify when workers die and replace them
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`Worker process ${worker.process.pid} died with code ${code}. Starting a replacement.`);
+    cluster.fork();
+  });
+
+  // Notify when workers are online
+  cluster.on('online', (worker) => {
+    console.log(`Worker process started on ${worker.process.pid}`);
+  });
+}
+else{
+  // If no port is specified in the environment variables, default to 3000
+  const port = normalizePort(process.env.PORT || '3000');
+  app.set('port', port);
+
+  const server = http.createServer(app);
+  server.listen(port);
+
+  server.on('error', onError);
+
+  process.on('message', (message) => {
+    if(message && message.type && message.type === 'shutdown'){
+      process.exit(0);
+    }
+  })
+}
+
+
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+function normalizePort(val) {
+  const port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // Named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // Port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  const bind = typeof port === 'string'
+      ? 'Pipe ' + port
+      : 'Port ' + port;
+
+  // Handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
