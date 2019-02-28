@@ -69,7 +69,7 @@ exports.getListByName = function(name, previousId = 0, limit = 10, orderBy = 'na
  * @param {String} name The name to use for the coin
  * @param {String} symbol The symbol to use for the coin
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to the inserted ID  if the coin is created successfully
+ * @returns {Promise} A promise that resolves to the inserted ID if the coin is created successfully
  */
 exports.create = function(name, symbol, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
