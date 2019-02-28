@@ -1,7 +1,7 @@
 const mysql = require('./mysql');
 
 /**
- * Get user by their ID
+ * Get a user by their ID
  *
  * @param {Number} id The integer ID to look for
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
@@ -18,7 +18,7 @@ exports.getById = function(id, connection = mysql.pool) {
 };
 
 /**
- * Get user by their ID
+ * Get a user by their UUID
  *
  * @param {String} uuid The UUID string to look for
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
@@ -35,7 +35,7 @@ exports.getByUuid = function(uuid, connection = mysql.pool) {
 };
 
 /**
- * Get user by their email
+ * Get a user by their email
  *
  * @param {String} email The email string to look for
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool

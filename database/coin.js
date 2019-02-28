@@ -18,7 +18,7 @@ exports.getById = function(id, connection = mysql.pool) {
 };
 
 /**
- * Get a coin by its ID
+ * Get a coin by its UUID
  *
  * @param {String} uuid The UUID string to look for
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
