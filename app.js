@@ -6,6 +6,8 @@ const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 const mysql = require('./database/mysql');
 
+const userRouter = require('./routes/users');
+
 const app = express();
 
 // Initialize the cookie session with a MySQL database
@@ -32,6 +34,27 @@ app.use(logger('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Use middleware to html sanitize all output to the client
+const sanitize = require('sanitize-html');
+const sanitizeResponse = function(req, res, next) {
+  const send = res.send;
+
+  res.send = function(body) {
+    if(body instanceof String) {
+      body = sanitize(body, {allowedTags: [], allowedAttributes: {}});
+      send.call(this, body);
+    }
+    else {
+      body = JSON.parse(sanitize(JSON.stringify(body), {allowedTags: [], allowedAttributes: {}}));
+      send.call(this, body);
+    }
+  };
+  next();
+};
+app.use(sanitizeResponse);
+
+app.use('/users', userRouter);
 
 // Catch 404 and forward to error handler
 app.use(function(req, res, next) {
