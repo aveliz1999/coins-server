@@ -7,11 +7,11 @@ const mysql = require('./mysql');
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the entry data if it's successful
  */
-exports.getById = function(id, connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
-        connection.query('SELECT id, user, coin, amount FROM `entry` WHERE `id` = ?', [id], function(err, rows, fields) {
-            if(err) return reject(err);
-            if(rows[0] === undefined) return reject(new Error('Entry not found'));
+exports.getById = function (id, connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
+        connection.query('SELECT id, user, coin, amount FROM `entry` WHERE `id` = ?', [id], function (err, rows, fields) {
+            if (err) return reject(err);
+            if (rows[0] === undefined) return reject(new Error('Entry not found'));
             resolve(rows[0]);
         });
     });
@@ -27,20 +27,19 @@ exports.getById = function(id, connection = mysql.pool) {
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of entry data if it's successful
  */
-exports.getListByUser = function(userId, previousId = 0, limit = 10, orderBy = 'amount', connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
+exports.getListByUser = function (userId, previousId = 0, limit = 10, orderBy = 'amount', connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
         let query;
         let parameters;
-        if(previousId === 0){
+        if (previousId === 0) {
             query = 'SELECT * FROM `entry` WHERE `user` = ? ORDER BY ? LIMIT ?';
             parameters = [userId, orderBy, limit];
-        }
-        else{
+        } else {
             query = 'SELECT * FROM `entry` WHERE `id` > ? AND `user` = ? ORDER BY ? LIMIT ?';
             parameters = [previousId, userId, orderBy, limit];
         }
-        connection.query(query, parameters, function(err, rows, fields) {
-            if(err) return reject(err);
+        connection.query(query, parameters, function (err, rows, fields) {
+            if (err) return reject(err);
             resolve(rows);
         });
     });
@@ -56,20 +55,19 @@ exports.getListByUser = function(userId, previousId = 0, limit = 10, orderBy = '
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of entry data if it's successful
  */
-exports.getListByCoin = function(coinId, previousId = 0, limit = 10, orderBy = 'amount', connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
+exports.getListByCoin = function (coinId, previousId = 0, limit = 10, orderBy = 'amount', connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
         let query;
         let parameters;
-        if(previousId === 0){
+        if (previousId === 0) {
             query = 'SELECT * FROM `entry` WHERE `coin` = ? ORDER BY ? LIMIT ?';
             parameters = [coinId, orderBy, limit];
-        }
-        else{
+        } else {
             query = 'SELECT * FROM `entry` WHERE `id` > ? AND `coin` = ? ORDER BY ? LIMIT ?';
             parameters = [previousId, coinId, orderBy, limit];
         }
-        connection.query(query, parameters, function(err, rows, fields) {
-            if(err) return reject(err);
+        connection.query(query, parameters, function (err, rows, fields) {
+            if (err) return reject(err);
             resolve(rows);
         });
     });
@@ -84,10 +82,10 @@ exports.getListByCoin = function(coinId, previousId = 0, limit = 10, orderBy = '
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the inserted ID if the entry is created successfully
  */
-exports.create = function(userId, coinId, amount = 0, connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
-        connection.query('INSERT INTO `entry` (user, coin, amount) VALUES (?, ?, ?)', [userId, coinId, amount], function(err, result, fields) {
-            if(err) return reject(err);
+exports.create = function (userId, coinId, amount = 0, connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
+        connection.query('INSERT INTO `entry` (user, coin, amount) VALUES (?, ?, ?)', [userId, coinId, amount], function (err, result, fields) {
+            if (err) return reject(err);
             resolve(result.insertId);
         });
     });
@@ -101,10 +99,10 @@ exports.create = function(userId, coinId, amount = 0, connection = mysql.pool) {
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the changed id if the entry is updated successfully
  */
-exports.updateAmount = function(id, newAmount, connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
-        connection.query('UPDATE `coin` SET `amount` = ? WHERE `id` = ?', [newAmount, id], function(err, result, fields) {
-            if(err) return reject(err);
+exports.updateAmount = function (id, newAmount, connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
+        connection.query('UPDATE `coin` SET `amount` = ? WHERE `id` = ?', [newAmount, id], function (err, result, fields) {
+            if (err) return reject(err);
             resolve(id);
         });
     });

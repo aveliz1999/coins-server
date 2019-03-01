@@ -90,36 +90,38 @@ const createRoleTableQuery = 'CREATE TABLE IF NOT EXISTS `role` (\n' +
     '  CONSTRAINT `role_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`)\n' +
     ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 
-const connection = mysql.createConnection({connectionLimit: 10,
+const connection = mysql.createConnection({
+    connectionLimit: 10,
     host: 'localhost',
     user: 'root',
     password: process.env.DATABASE_PASSWORD,
     database: 'coins_test',
-    multipleStatements: true});
+    multipleStatements: true
+});
 connection.query(`${createUserTableQuery};
     ${createCoinTableQuery};
     ${createEntryTableQuery};
     ${createTransactionTableQuery};
     ${createItemTableQuery};
     ${createRoleCodeTableQuery};
-    ${createRoleTableQuery}`, function(err) {
-    if(err){
+    ${createRoleTableQuery}`, function (err) {
+    if (err) {
         console.error(err);
         process.exit(-1);
     }
 });
 
 exports.pool = pool;
-exports.getConnection = function(callback) {
-    pool.getConnection(function(err, connection) {
+exports.getConnection = function (callback) {
+    pool.getConnection(function (err, connection) {
         callback(err, connection);
     });
 };
 
-exports.commitTransaction = function(connection) {
-    return new Promise(function(resolve, reject) {
-        connection.commit(function(err) {
-            if(err) {
+exports.commitTransaction = function (connection) {
+    return new Promise(function (resolve, reject) {
+        connection.commit(function (err) {
+            if (err) {
                 return reject(err);
             }
             return resolve(true);

@@ -7,11 +7,11 @@ const mysql = require('./mysql');
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the coin data if it's successful
  */
-exports.getById = function(id, connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
-        connection.query('SELECT id, name, symbol, BIN_TO_UUID(uuid) AS uuid FROM `coin` WHERE `id` = ?', [id], function(err, rows, fields) {
-            if(err) return reject(err);
-            if(rows[0] === undefined) return reject(new Error('Coin not found'));
+exports.getById = function (id, connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
+        connection.query('SELECT id, name, symbol, BIN_TO_UUID(uuid) AS uuid FROM `coin` WHERE `id` = ?', [id], function (err, rows, fields) {
+            if (err) return reject(err);
+            if (rows[0] === undefined) return reject(new Error('Coin not found'));
             resolve(rows[0]);
         });
     });
@@ -24,11 +24,11 @@ exports.getById = function(id, connection = mysql.pool) {
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the coin data if it's successful
  */
-exports.getByUuid = function(uuid, connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
-        connection.query('SELECT id, name, symbol, BIN_TO_UUID(uuid) AS uuid FROM `coin` WHERE `uuid` = UUID_TO_BIN(?)', [uuid], function(err, rows, fields) {
-            if(err) return reject(err);
-            if(rows[0] === undefined) return reject(new Error('Coin not found'));
+exports.getByUuid = function (uuid, connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
+        connection.query('SELECT id, name, symbol, BIN_TO_UUID(uuid) AS uuid FROM `coin` WHERE `uuid` = UUID_TO_BIN(?)', [uuid], function (err, rows, fields) {
+            if (err) return reject(err);
+            if (rows[0] === undefined) return reject(new Error('Coin not found'));
             resolve(rows[0]);
         });
     });
@@ -44,20 +44,19 @@ exports.getByUuid = function(uuid, connection = mysql.pool) {
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of coin data if it's successful
  */
-exports.getListByName = function(name, previousId = 0, limit = 10, orderBy = 'name', connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
+exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'name', connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
         let query;
         let parameters;
-        if(previousId === 0){
+        if (previousId === 0) {
             query = 'SELECT id, name, symbol, BIN_TO_UUID(uuid) AS uuid FROM `coin` WHERE `name` = ? ORDER BY ? LIMIT ?';
             parameters = [name, orderBy, limit];
-        }
-        else{
+        } else {
             query = 'SELECT id, name, symbol, BIN_TO_UUID(uuid) AS uuid FROM `coin` WHERE `id` > ? AND `name` = ? ORDER BY ? LIMIT ?';
             parameters = [previousId, name, orderBy, limit];
         }
-        connection.query(query, parameters, function(err, rows, fields) {
-            if(err) return reject(err);
+        connection.query(query, parameters, function (err, rows, fields) {
+            if (err) return reject(err);
             resolve(rows);
         });
     });
@@ -71,10 +70,10 @@ exports.getListByName = function(name, previousId = 0, limit = 10, orderBy = 'na
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the inserted ID if the coin is created successfully
  */
-exports.create = function(name, symbol, connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
-        connection.query('INSERT INTO `coin` (name, symbol, uuid) VALUES (?, ?, UUID_TO_BIN(UUID()))', [name, symbol], function(err, result, fields) {
-            if(err) return reject(err);
+exports.create = function (name, symbol, connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
+        connection.query('INSERT INTO `coin` (name, symbol, uuid) VALUES (?, ?, UUID_TO_BIN(UUID()))', [name, symbol], function (err, result, fields) {
+            if (err) return reject(err);
             resolve(result.insertId);
         });
     });
@@ -88,10 +87,10 @@ exports.create = function(name, symbol, connection = mysql.pool) {
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the changed id if the coin is updated successfully
  */
-exports.updateName = function(id, newName, connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
-        connection.query('UPDATE `coin` SET `name` = ? WHERE `id` = ?', [newName, id], function(err, result, fields) {
-            if(err) return reject(err);
+exports.updateName = function (id, newName, connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
+        connection.query('UPDATE `coin` SET `name` = ? WHERE `id` = ?', [newName, id], function (err, result, fields) {
+            if (err) return reject(err);
             resolve(id);
         });
     });
@@ -105,10 +104,10 @@ exports.updateName = function(id, newName, connection = mysql.pool) {
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the changed id if the coin is updated successfully
  */
-exports.updateSymbol = function(id, newSymbol, connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
-        connection.query('UPDATE `coin` SET `symbol` = ? WHERE `id` = ?', [newSymbol, id], function(err, result, fields) {
-            if(err) return reject(err);
+exports.updateSymbol = function (id, newSymbol, connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
+        connection.query('UPDATE `coin` SET `symbol` = ? WHERE `id` = ?', [newSymbol, id], function (err, result, fields) {
+            if (err) return reject(err);
             resolve(id);
         });
     });
