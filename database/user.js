@@ -135,6 +135,33 @@ exports.updateEmail = function(id, newEmail, connection = mysql.pool) {
 };
 
 /**
+ * Updates the password of a user with a given ID
+ *
+ * @param {Number} id The ID of the user being updated
+ * @param {String} newPassword The new password to set for the user
+ * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @returns {Promise} A promise that resolves to the changed id if the user is updated successfully
+ */
+exports.updatePassword = function(id, newPassword, connection = mysql.pool) {
+    return new Promise(function(resolve, reject) {
+        bcrypt.genSalt(SALT_ROUNDS, function(err, salt) {
+            if(err){
+                return reject(err);
+            }
+            bcrypt.hash(newPassword, salt, function(err, hash) {
+                if(err){
+                    return reject(err);
+                }
+                connection.query('UPDATE `user` SET `password` = ? WHERE `id` = ?', [hash, id], function(err, result, fields) {
+                    if(err) return reject(err);
+                    resolve(id);
+                });
+            });
+        });
+    });
+};
+
+/**
  * Updates the name of a user with a given ID
  *
  * @param {Number} id The ID of the user being updated
@@ -151,3 +178,29 @@ exports.updateName = function(id, newName, connection = mysql.pool) {
     });
 };
 
+/**
+ * Compare a user's password with the password stored in the database
+ *
+ * @param id The ID of the user that's being compared
+ * @param password The password that's being compared
+ * @param connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @returns {Promise} A promise that resolves to true if the password matches or false if it doesn't
+ */
+exports.comparePassword = function(id, password, connection = mysql.pool) {
+    return new Promise(function(resolve, reject) {
+        connection.query('SELECT `password` FROM `user` WHERE `id` = ?', [id], function(err, rows, fields) {
+            if(err) return reject(err);
+            if(rows[0] === undefined) return reject(new Error('User not found'));
+            const databasePassword = rows[0].password;
+            bcrypt.compare(password, databasePassword, function(err, result){
+                if(err) return reject(err);
+                if(result) {
+                    return resolve(true);
+                }
+                else{
+                    return resolve(false);
+                }
+            })
+        });
+    });
+};
