@@ -1,4 +1,12 @@
 const mysql = require('./mysql');
+const bcrypt = require('bcrypt');
+
+/**
+ * Amount of rounds when generating a password salt
+ *
+ * @type {number}
+ */
+const SALT_ROUNDS = 10;
 
 /**
  * Get a user by their ID
@@ -91,9 +99,19 @@ exports.getListByName = function(name, previousId = 0, limit = 10, orderBy = 'na
  */
 exports.create = function(email, password, name, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
-        connection.query('INSERT INTO `user` (email, password, name, uuid) VALUES (?, ?, ?, UUID_TO_BIN(UUID()))', [email, password, name], function(err, result, fields) {
-            if(err) return reject(err);
-            resolve(result.insertId);
+        bcrypt.genSalt(SALT_ROUNDS, function(err, salt) {
+            if(err){
+                return reject(err);
+            }
+            bcrypt.hash(password, salt, function(err, hash) {
+                if(err){
+                    return reject(err);
+                }
+                connection.query('INSERT INTO `user` (email, password, name, uuid) VALUES (?, ?, ?, UUID_TO_BIN(UUID()))', [email, hash, name], function(err, result, fields) {
+                    if(err) return reject(err);
+                    resolve(result.insertId);
+                });
+            });
         });
     });
 };
@@ -108,6 +126,7 @@ exports.create = function(email, password, name, connection = mysql.pool) {
  */
 exports.updateEmail = function(id, newEmail, connection = mysql.pool) {
     return new Promise(function(resolve, reject) {
+        bcrypt.genSalt(salt)
         connection.query('UPDATE `user` SET `email` = ? WHERE `id` = ?', [newEmail, id], function(err, result, fields) {
             if(err) return reject(err);
             resolve(id);
