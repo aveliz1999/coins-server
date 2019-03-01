@@ -180,21 +180,21 @@ exports.updateName = function (id, newName, connection = mysql.pool) {
 /**
  * Compare a user's password with the password stored in the database
  *
- * @param id The ID of the user that's being compared
- * @param password The password that's being compared
- * @param connection The connection to use for the query. By default retrieves a new one from the connection pool
- * @returns {Promise} A promise that resolves to true if the password matches or false if it doesn't
+ * @param {String} email The ID of the user that's being compared
+ * @param {String} password The password that's being compared
+ * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @returns {Promise} A promise that resolves to the id and uuid of the user if the password matches or false if it doesn't
  */
-exports.comparePassword = function (id, password, connection = mysql.pool) {
+exports.comparePassword = function (email, password, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        connection.query('SELECT `password` FROM `user` WHERE `id` = ?', [id], function (err, rows, fields) {
+        connection.query('SELECT `id`, `password`, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `email` = ?', [email], function (err, rows, fields) {
             if (err) return reject(err);
             if (rows[0] === undefined) return reject(new Error('User not found'));
             const databasePassword = rows[0].password;
             bcrypt.compare(password, databasePassword, function (err, result) {
                 if (err) return reject(err);
                 if (result) {
-                    return resolve(true);
+                    return resolve({id: rows[0].id, uuid: rows[0].uuid});
                 } else {
                     return resolve(false);
                 }
