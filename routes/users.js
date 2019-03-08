@@ -1,5 +1,5 @@
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
 const Joi = require('joi');
 const user = require('../database/user');
 
@@ -71,6 +71,7 @@ router.post('/login', function (req, res) {
                 .then(function (result) {
                     if (result) {
                         req.session.user = result.id;
+                        res.cookie('authenticated', req.sessionID, {maxAge: 3600000, httpOnly: false});
                         res.status(200).send({data: result.uuid});
                     } else {
                         res.status(400).send({message: 'Incorrect username or password.'})
