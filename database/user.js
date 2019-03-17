@@ -97,15 +97,14 @@ exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'n
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of user data if it's successful
  */
-exports.searchByName = function(name, previousId = 0, limit = 10, orderBy = 'name', connection = mysql.pool) {
-    return new Promise(function(resolve, reject) {
+exports.searchByName = function (name, previousId = 0, limit = 10, orderBy = 'name', connection = mysql.pool) {
+    return new Promise(function (resolve, reject) {
         let query;
         let parameters;
         if (previousId === 0) {
             query = 'SELECT id, email, password, name, BIN_TO_UUID(uuid) as uuid FROM `user` WHERE `name` LIKE ? ORDER BY ? LIMIT ?';
             parameters = [name + '%', orderBy, limit];
-        }
-        else {
+        } else {
             query = 'SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `id` > ? AND `name` LIKE ? ORDER BY ? LIMIT ?';
             parameters = [previousId, name + '%', orderBy, limit];
         }

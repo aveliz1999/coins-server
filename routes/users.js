@@ -102,21 +102,20 @@ router.get('/search/:name', function (req, res) {
             .required()
     };
     Joi.validate(req.params, searchSchema, function (err, value) {
-        if(err) {
+        if (err) {
             res.status(400).send({message: err.message});
-        }
-        else{
+        } else {
             user.searchByName(value.name)
-                .then(function(users) {
+                .then(function (users) {
                     res.status(200).send(
-                        users.map(function(user) {
+                        users.map(function (user) {
                             delete user.id;
                             delete user.password;
                             return user;
                         })
                     );
                 })
-                .catch(function(err) {
+                .catch(function (err) {
                     console.error(err);
                     res.status(500).send({message: 'An error occurred while searching. Please try again.'})
                 });
