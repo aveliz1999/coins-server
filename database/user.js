@@ -88,6 +88,35 @@ exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'n
 };
 
 /**
+ * Get a list of users by searching their names
+ *
+ * @param {String} name The name string to look for
+ * @param {Number} previousId The row id to start looking. Used for pagination, and defaults to 0
+ * @param {Number} limit The amount of rows to retrieve. Defaults to 10
+ * @param {String} orderBy How to order the returned rows. Defaults to "name"
+ * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @returns {Promise} A promise that resolves to a list of user data if it's successful
+ */
+exports.searchByName = function(name, previousId = 0, limit = 10, orderBy = 'name', connection = mysql.pool) {
+    return new Promise(function(resolve, reject) {
+        let query;
+        let parameters;
+        if (previousId === 0) {
+            query = 'SELECT id, email, password, name, BIN_TO_UUID(uuid) as uuid FROM `user` WHERE `name` LIKE ? ORDER BY ? LIMIT ?';
+            parameters = [name + '%', orderBy, limit];
+        }
+        else {
+            query = 'SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `id` > ? AND `name` LIKE ? ORDER BY ? LIMIT ?';
+            parameters = [previousId, name + '%', orderBy, limit];
+        }
+        connection.query(query, parameters, function (err, rows, fields) {
+            if (err) return reject(err);
+            resolve(rows);
+        });
+    })
+};
+
+/**
  * Create a new user with the given information
  *
  * @param {String} email The email to use for the user. Must be unique or it returns an error

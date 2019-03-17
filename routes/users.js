@@ -89,4 +89,39 @@ router.post('/login', function (req, res) {
     });
 });
 
+/**
+ * Search for users with names that begin with the given name.
+ * Returns a list of user objects without the internal ID and the user passwords.
+ *
+ * The name parameter must be present, and it must be under 50 characters.
+ */
+router.get('/search/:name', function (req, res) {
+    const searchSchema = {
+        name: Joi.string()
+            .max(50)
+            .required()
+    };
+    Joi.validate(req.params, searchSchema, function (err, value) {
+        if(err) {
+            res.status(400).send({message: err.message});
+        }
+        else{
+            user.searchByName(value.name)
+                .then(function(users) {
+                    res.status(200).send(
+                        users.map(function(user) {
+                            delete user.id;
+                            delete user.password;
+                            return user;
+                        })
+                    );
+                })
+                .catch(function(err) {
+                    console.error(err);
+                    res.status(500).send({message: 'An error occurred while searching. Please try again.'})
+                });
+        }
+    });
+});
+
 module.exports = router;
