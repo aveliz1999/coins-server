@@ -2,9 +2,13 @@
 const app = require('../app');
 const http = require('http');
 const cluster = require('cluster');
+const mysql = require('../database/mysql');
 
 if(cluster.isMaster){
   console.log(`Master process started on ${process.pid}`);
+
+  mysql.setup();
+
   // If no amount is specified in the environment variables, default to number of cores
   const processes = process.env.PROCESSES || require('os').cpus().length;
 

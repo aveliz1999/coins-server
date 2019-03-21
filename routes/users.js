@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
+const mysql = require('../database/mysql');
 const user = require('../database/user');
 const entry = require('../database/entry');
 const coin = require('../database/coin');
@@ -30,19 +31,42 @@ router.post('/', function (req, res) {
     Joi.validate(req.body, registerSchema, function (err, value) {
         if (err) {
             res.status(400).send({message: err.message});
-        } else {
-            user.create(value.email, value.password, value.name)
-                .then(function () {
-                    res.status(200).send({data: 'User created successfully'});
-                })
-                .catch(function (err) {
-                    if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.match(/(?<=key ').+(?=')/)[0] === 'email_UNIQUE') {
-                        res.status(400).send({message: 'A user with that email already exists.'})
-                    } else {
-                        res.status(500).send({message: 'An error occurred while creating your user. Please try again.'});
-                    }
-                });
+            throw err;
         }
+        mysql.getConnection(function(err, connection) {
+            if(err){
+                res.status(500).send({message: 'An error occurred while registering. Please try again.'});
+                throw err;
+            }
+            connection.beginTransaction(function(err) {
+                if(err) {
+                    return connection.rollback(function() {
+                        res.status(500).send({message: 'An error occurred while registering. Please try again.'});
+                        throw error;
+                    });
+                }
+                user.create(value.email, value.password, value.name, connection)
+                    .then(function(userId) {
+                        return entry.create(userId, 1, 0, connection);
+                    })
+                    .then(function() {
+                        return mysql.commitTransaction(connection);
+                    })
+                    .then(function() {
+                        res.status(200).send({data: 'User created successfully'});
+                    })
+                    .catch(function (err) {
+                        if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.match(/(?<=key ').+(?=')/)[0] === 'email_UNIQUE') {
+                            res.status(400).send({message: 'A user with that email already exists.'})
+                        } else {
+                            res.status(500).send({message: 'An error occurred while creating your user. Please try again.'});
+                        }
+                        return connection.rollback(function () {
+                            throw err;
+                        })
+                    });
+            })
+        });
     });
 });
 

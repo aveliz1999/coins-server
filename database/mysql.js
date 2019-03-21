@@ -90,26 +90,7 @@ const createRoleTableQuery = 'CREATE TABLE IF NOT EXISTS `role` (\n' +
     '  CONSTRAINT `role_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`)\n' +
     ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 
-const connection = mysql.createConnection({
-    connectionLimit: 10,
-    host: 'localhost',
-    user: 'root',
-    password: process.env.DATABASE_PASSWORD,
-    database: 'coins_test',
-    multipleStatements: true
-});
-connection.query(`${createUserTableQuery};
-    ${createCoinTableQuery};
-    ${createEntryTableQuery};
-    ${createTransactionTableQuery};
-    ${createItemTableQuery};
-    ${createRoleCodeTableQuery};
-    ${createRoleTableQuery}`, function (err) {
-    if (err) {
-        console.error(err);
-        process.exit(-1);
-    }
-});
+const defaultCurrencyCreateQuery = 'INSERT INTO `coin` (id, name, symbol, uuid) VALUES (1, ?, ?, UUID_TO_BIN(UUID())) ON DUPLICATE KEY UPDATE id=1, name=?, symbol=?';
 
 exports.pool = pool;
 exports.getConnection = function (callback) {
@@ -127,4 +108,54 @@ exports.commitTransaction = function (connection) {
             return resolve(true);
         });
     });
+};
+
+exports.setup = function () {
+    const connection = mysql.createConnection({
+        connectionLimit: 10,
+        host: 'localhost',
+        user: 'root',
+        password: process.env.DATABASE_PASSWORD,
+        database: 'coins_test',
+        multipleStatements: true
+    });
+    const queries = [
+        {query: createUserTableQuery, message: 'Creating user table...'},
+        {query: createCoinTableQuery, message: 'Creating coin table...'},
+        {query: createEntryTableQuery, message: 'Creating entry table...'},
+        {query: createTransactionTableQuery, message: 'Creating entry table...'},
+        {query: createItemTableQuery, message: 'Creating item table...'},
+        {query: createRoleCodeTableQuery, message: 'Creating role code table...'},
+        {query: createRoleTableQuery, message: 'Creating role table...'}
+    ];
+    const promises = queries.map(function (query) {
+        return new Promise(function (resolve, reject) {
+            console.log(query.message);
+            connection.query(query.query, [], function (err) {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve();
+            });
+        })
+    });
+    Promise.all(promises)
+        .then(function() {
+            console.log('Finished creating tables.');
+            console.log('Creating default coin');
+            connection.query(defaultCurrencyCreateQuery, [process.env.DEFAULT_COIN_NAME || 'Universal Coin',
+                process.env.DEFAULT_COIN_SYMBOL || 'μ',
+                process.env.DEFAULT_COIN_NAME || 'Universal Coin',
+                process.env.DEFAULT_COIN_SYMBOL || 'μ'], function (err) {
+                if (err) {
+                    return Promise.reject(err);
+                }
+                console.log('Finished setting up database');
+                connection.destroy();
+            });
+        })
+        .catch(function(err) {
+            console.error(err);
+            process.exit(-1);
+        });
 };
