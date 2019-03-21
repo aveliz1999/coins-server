@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
 const user = require('../database/user');
+const entry = require('../database/entry');
+const coin = require('../database/coin');
 
 /**
  * Register new user with information sent in a POST request to /users.
@@ -42,6 +44,54 @@ router.post('/', function (req, res) {
                 });
         }
     });
+});
+
+/**
+ * Get basic information about the logged on user.
+ * User field must be set in the session to be considered logged on.
+ *
+ * Returns the user information (name, email, uuid) and list of coin information (coin name, symbol, uuid, and amount)
+ */
+router.get('/', function (req,res) {
+    if(!req.session.user) {
+        res.status(403).send('No access');
+        return;
+    }
+    const toReturn = {};
+    entry.getListByUser(req.session.user, 0, Number.MAX_SAFE_INTEGER)
+        .then(function (entries) {
+            toReturn.coins = entries.map(function(entry) {
+                return {amount: entry.amount};
+            });
+            const coinIds = new Set(entries.map(function (entry) {
+                return entry.coin;
+            }));
+            const promises = [];
+            for(let coinId of coinIds) {
+                promises.push(coin.getById(coinId));
+            }
+            return Promise.all(promises);
+        })
+        .then(function (coins) {
+            for(let i = 0; i < toReturn.coins.length; i++) {
+                toReturn.coins[i].name = coins[i].name;
+                toReturn.coins[i].symbol = coins[i].symbol;
+                toReturn.coins[i].coinId = coins[i].uuid;
+            }
+            return user.getById(req.session.user);
+        })
+        .then(function(user) {
+            toReturn.user = {
+                email: user.email,
+                name: user.name,
+                id: user.uuid
+            };
+            res.status(200).send(toReturn);
+        })
+        .catch(function (err) {
+            res.status(500).send('An error has occurred. Please try again.');
+            throw err;
+        });
 });
 
 /**
