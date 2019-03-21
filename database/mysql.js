@@ -92,13 +92,30 @@ const createRoleTableQuery = 'CREATE TABLE IF NOT EXISTS `role` (\n' +
 
 const defaultCurrencyCreateQuery = 'INSERT INTO `coin` (id, name, symbol, uuid) VALUES (1, ?, ?, UUID_TO_BIN(UUID())) ON DUPLICATE KEY UPDATE id=1, name=?, symbol=?';
 
+/**
+ * The connection pool used for queries
+ * @type {Pool}
+ */
 exports.pool = pool;
+
+/**
+ * Get a connection to use from the pool
+ *
+ * @param callback function with error and connection parameters, called when the connection is established
+ */
 exports.getConnection = function (callback) {
     pool.getConnection(function (err, connection) {
         callback(err, connection);
     });
 };
 
+/**
+ * Commits a transaction in a connection.
+ * Used so that committing can be used as a promise rather than as a callback.
+ *
+ * @param connection The connection with a pending transaction.
+ * @returns {Promise} Resolves to true if it resolves successfully, or rejects it with an error
+ */
 exports.commitTransaction = function (connection) {
     return new Promise(function (resolve, reject) {
         connection.commit(function (err) {
@@ -110,6 +127,11 @@ exports.commitTransaction = function (connection) {
     });
 };
 
+/**
+ * Set up the tables required for the project to work as well as a default coin to use for all users.
+ * Exit the process if an error occurs. Due to this function being executed only by the master process, that should
+ * stop the entire program if it happens.
+ */
 exports.setup = function () {
     const connection = mysql.createConnection({
         connectionLimit: 10,
