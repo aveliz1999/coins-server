@@ -107,7 +107,7 @@ exports.updateName = function (id, newName, connection = mysql.pool) {
  */
 exports.updateCost = function (id, newCost, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        connection.query('UPDATE `coin` SET `cost` = ? WHERE `id` = ?', [newCost, id], function (err, result, fields) {
+        connection.query('UPDATE `item` SET `cost` = ? WHERE `id` = ?', [newCost, id], function (err, result, fields) {
             if (err) return reject(err);
             resolve(id);
         });

@@ -18,6 +18,24 @@ exports.getById = function (id, connection = mysql.pool) {
 };
 
 /**
+ * Get an entry that belongs to a specific coin and user
+ *
+ * @param {Number} coinId The coin it belongs to
+ * @param {Number} userId The user it belongs to
+ * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @returns {Promise} A promise that resolves to the entry data if it's successful
+ */
+exports.getByCoinAndUser = function(coinId, userId, connection = mysql.pool) {
+    return new Promise(function(resolve, reject) {
+        connection.query('SELECT * FROM `entry` WHERE coin = ? AND user = ?', [coinId, userId], function(err, rows, fields) {
+            if (err) return reject(err);
+            if (rows[0] === undefined) return reject(new Error('Entry not found'));
+            resolve(rows[0]);
+        });
+    });
+};
+
+/**
  * Get a list of entries by their user
  *
  * @param {Number} userId The integer user ID to look for
@@ -101,7 +119,7 @@ exports.create = function (userId, coinId, amount = 0, connection = mysql.pool) 
  */
 exports.updateAmount = function (id, newAmount, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        connection.query('UPDATE `coin` SET `amount` = ? WHERE `id` = ?', [newAmount, id], function (err, result, fields) {
+        connection.query('UPDATE `entry` SET `amount` = ? WHERE `id` = ?', [newAmount, id], function (err, result, fields) {
             if (err) return reject(err);
             resolve(id);
         });
