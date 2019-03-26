@@ -132,7 +132,7 @@ exports.SortType = SortType;
  *
  * @returns {Promise<Promise>} The promise that resolves to a connection or rejects with an error
  */
-exports.getConnectionPromise = function() {
+exports.getConnection = function() {
     return new Promise((resolve, reject) => {
         pool.getConnection(function (err, connection) {
             if(err) {
@@ -142,17 +142,6 @@ exports.getConnectionPromise = function() {
         });
     });
 
-};
-
-/**
- * Get a connection to use from the pool
- *
- * @param callback function with error and connection parameters, called when the connection is established
- */
-exports.getConnection = function (callback) {
-    pool.getConnection(function (err, connection) {
-        callback(err, connection);
-    });
 };
 
 /**
