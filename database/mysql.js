@@ -37,13 +37,13 @@ const createEntryTableQuery = 'CREATE TABLE IF NOT EXISTS `entry` (\n' +
     '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
     '  KEY `coin_idx` (`coin`),\n' +
     '  KEY `entry_user` (`user`),\n' +
-    '  CONSTRAINT `entry_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`),\n' +
-    '  CONSTRAINT `entry_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`)\n' +
+    '  CONSTRAINT `entry_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`) ON DELETE CASCADE,\n' +
+    '  CONSTRAINT `entry_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE\n' +
     ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 const createTransactionTableQuery = 'CREATE TABLE IF NOT EXISTS `transaction` (\n' +
     '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
-    '  `sender` int(10) unsigned NOT NULL,\n' +
-    '  `receiver` int(10) unsigned NOT NULL,\n' +
+    '  `sender` int(10) unsigned,\n' +
+    '  `receiver` int(10) unsigned,\n' +
     '  `coin` int(10) unsigned NOT NULL,\n' +
     '  `amount` int(10) unsigned NOT NULL,\n' +
     '  `timestamp` datetime(3) NOT NULL,\n' +
@@ -52,9 +52,9 @@ const createTransactionTableQuery = 'CREATE TABLE IF NOT EXISTS `transaction` (\
     '  KEY `sender_idx` (`sender`),\n' +
     '  KEY `receiver_idx` (`receiver`),\n' +
     '  KEY `coin_idx` (`coin`),\n' +
-    '  CONSTRAINT `transaction_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`),\n' +
-    '  CONSTRAINT `transaction_receiver` FOREIGN KEY (`receiver`) REFERENCES `user` (`id`),\n' +
-    '  CONSTRAINT `transaction_sender` FOREIGN KEY (`sender`) REFERENCES `user` (`id`)\n' +
+    '  CONSTRAINT `transaction_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`) ON DELETE CASCADE,\n' +
+    '  CONSTRAINT `transaction_receiver` FOREIGN KEY (`receiver`) REFERENCES `user` (`id`) ON DELETE SET NULL,\n' +
+    '  CONSTRAINT `transaction_sender` FOREIGN KEY (`sender`) REFERENCES `user` (`id`) ON DELETE SET NULL\n' +
     ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 const createItemTableQuery = 'CREATE TABLE IF NOT EXISTS `item` (\n' +
     '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
@@ -66,7 +66,7 @@ const createItemTableQuery = 'CREATE TABLE IF NOT EXISTS `item` (\n' +
     '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
     '  UNIQUE KEY `uuid_UNIQUE` (`uuid`),\n' +
     '  KEY `item_coin_idx` (`coin`),\n' +
-    '  CONSTRAINT `item_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`)\n' +
+    '  CONSTRAINT `item_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`) ON DELETE CASCADE\n' +
     ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 const createRoleCodeTableQuery = 'CREATE TABLE IF NOT EXISTS `role_code` (\n' +
     '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
@@ -79,16 +79,33 @@ const createRoleTableQuery = 'CREATE TABLE IF NOT EXISTS `role` (\n' +
     '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
     '  `coin` int(10) unsigned NOT NULL,\n' +
     '  `user` int(10) unsigned NOT NULL,\n' +
-    '  `role_code` int(10) unsigned NOT NULL,\n' +
+    '  `role_code` int(10) unsigned,\n' +
     '  PRIMARY KEY (`id`),\n' +
     '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
     '  KEY `role_coin_idx` (`coin`),\n' +
     '  KEY `role_user_idx` (`user`),\n' +
     '  KEY `role_code_idx` (`role_code`),\n' +
-    '  CONSTRAINT `role_code` FOREIGN KEY (`role_code`) REFERENCES `role_code` (`id`),\n' +
-    '  CONSTRAINT `role_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`),\n' +
-    '  CONSTRAINT `role_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`)\n' +
+    '  CONSTRAINT `role_code` FOREIGN KEY (`role_code`) REFERENCES `role_code` (`id`) ON DELETE SET NULL,\n' +
+    '  CONSTRAINT `role_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`) ON DELETE CASCADE,\n' +
+    '  CONSTRAINT `role_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE\n' +
     ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
+const createRequestTableQuery = 'CREATE TABLE IF NOT EXISTS `request` (\n' +
+    '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
+    '  `requester` int(10) unsigned NOT NULL,\n' +
+    '  `sender` int(10) unsigned NOT NULL,\n' +
+    '  `coin` int(10) unsigned NOT NULL,\n' +
+    '  `amount` int(10) unsigned NOT NULL,\n' +
+    '  `uuid` varchar(45) NOT NULL,\n' +
+    '  PRIMARY KEY (`id`),\n' +
+    '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
+    '  UNIQUE KEY `uuid_UNIQUE` (`uuid`),\n' +
+    '  KEY `request_requester_idx` (`requester`),\n' +
+    '  KEY `requester_sender_idx` (`sender`),\n' +
+    '  KEY `request_coin_idx` (`coin`),\n' +
+    '  CONSTRAINT `request_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`) ON DELETE CASCADE,\n' +
+    '  CONSTRAINT `request_requester` FOREIGN KEY (`requester`) REFERENCES `user` (`id`) ON DELETE CASCADE,\n' +
+    '  CONSTRAINT `request_sender` FOREIGN KEY (`sender`) REFERENCES `user` (`id`) ON DELETE CASCADE\n' +
+    ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 
 const defaultCurrencyCreateQuery = 'INSERT INTO `coin` (id, name, symbol, uuid) VALUES (1, ?, ?, UUID_TO_BIN(UUID())) ON DUPLICATE KEY UPDATE id=1, name=?, symbol=?';
 
@@ -97,6 +114,35 @@ const defaultCurrencyCreateQuery = 'INSERT INTO `coin` (id, name, symbol, uuid) 
  * @type {Pool}
  */
 exports.pool = pool;
+
+/**
+ * Sort types for the database.
+ * Ascending or Descending.
+ *
+ * @type {{ASCENDING: string, DESCENDING: string}}
+ */
+const SortType = {
+    ASCENDING: 'ASC',
+    DESCENDING: 'DESC'
+};
+exports.SortType = SortType;
+
+/**
+ * Get a connection from the pool as a promise
+ *
+ * @returns {Promise<Promise>} The promise that resolves to a connection or rejects with an error
+ */
+exports.getConnectionPromise = function() {
+    return new Promise((resolve, reject) => {
+        pool.getConnection(function (err, connection) {
+            if(err) {
+                return reject(err);
+            }
+            resolve(connection);
+        });
+    });
+
+};
 
 /**
  * Get a connection to use from the pool
@@ -110,11 +156,27 @@ exports.getConnection = function (callback) {
 };
 
 /**
- * Commits a transaction in a connection.
- * Used so that committing can be used as a promise rather than as a callback.
+ * Begin a transaction in a connection as a promise
  *
- * @param connection The connection with a pending transaction.
- * @returns {Promise} Resolves to true if it resolves successfully, or rejects it with an error
+ * @param {Connection} connection The connection to begin a transaction in
+ * @returns {Promise} A promise that resolves with no value once the transaction has begun or rejects with an error
+ */
+exports.beginTransaction = function(connection) {
+    return new Promise(function(resolve, reject) {
+        connection.beginTransaction(function(err) {
+           if(err){
+               return reject(err);
+           }
+           return resolve();
+        });
+    });
+};
+
+/**
+ * Commit a transaction in a connection as a promise
+ *
+ * @param {Connection} connection The connection with a pending transaction.
+ * @returns {Promise} A promise that resolves with no value once the transaction has committed or rejects it with an error
  */
 exports.commitTransaction = function (connection) {
     return new Promise(function (resolve, reject) {
@@ -122,7 +184,21 @@ exports.commitTransaction = function (connection) {
             if (err) {
                 return reject(err);
             }
-            return resolve(true);
+            return resolve();
+        });
+    });
+};
+
+/**
+ * Roll back a transaction in a connection as a promise
+ *
+ * @param {Connection} connection The connection with the transaction to roll back
+ * @returns {Promise} A promise that resolves once the transaction is rolled back
+ */
+exports.rollbackTransaction = function(connection) {
+    return new Promise(function(resolve, reject) {
+        connection.rollback(function() {
+            resolve();
         });
     });
 };
@@ -148,7 +224,8 @@ exports.setup = function () {
         {query: createTransactionTableQuery, message: 'Creating entry table...'},
         {query: createItemTableQuery, message: 'Creating item table...'},
         {query: createRoleCodeTableQuery, message: 'Creating role code table...'},
-        {query: createRoleTableQuery, message: 'Creating role table...'}
+        {query: createRoleTableQuery, message: 'Creating role table...'},
+        {query: createRequestTableQuery, message: 'Creating request table...'}
     ];
     const promises = queries.map(function (query) {
         return new Promise(function (resolve, reject) {
