@@ -105,8 +105,8 @@ exports.create = function (name, symbol, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
         const query = knex('coin')
             .insert({
-                name: 'Adrian',
-                symbol: 'AS',
+                name: name,
+                symbol: symbol,
                 uuid: knex.raw('UUID_TO_BIN(UUID())')
             });
         connection.query(query, [name, symbol], function (err, result, fields) {
