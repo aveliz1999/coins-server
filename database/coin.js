@@ -1,15 +1,27 @@
 const mysql = require('./mysql');
+const knex = require('knex')({client: 'mysql'});
 
 /**
  * Get a coin by its ID
  *
  * @param {Number} id The integer ID to look for
+ * @param {String[]} columns The columns to retrieve from the database
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the coin data if it's successful
  */
-exports.getById = function (id, connection = mysql.pool) {
+exports.getById = function (id, columns = ['id', 'name', 'symbol', 'uuid'], connection = mysql.pool) {
+    // Replace plain uuid column name with BIN_TO_UUID mysql function to return the uuid string properly
+    columns = columns.map(function(column) {
+        if(column === 'uuid'){
+            return knex.raw('BIN_TO_UUID(uuid) as `uuid`');
+        }
+        return column;
+    });
     return new Promise(function (resolve, reject) {
-        connection.query('SELECT id, name, symbol, BIN_TO_UUID(uuid) AS uuid FROM `coin` WHERE `id` = ?', [id], function (err, rows, fields) {
+        const query = knex('coin')
+            .select(columns)
+            .where('id', id);
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             if (rows[0] === undefined) return reject(new Error('Coin not found'));
             resolve(rows[0]);
@@ -21,12 +33,23 @@ exports.getById = function (id, connection = mysql.pool) {
  * Get a coin by its UUID
  *
  * @param {String} uuid The UUID string to look for
+ * @param {String[]} columns The columns to retrieve from the database
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the coin data if it's successful
  */
-exports.getByUuid = function (uuid, connection = mysql.pool) {
+exports.getByUuid = function (uuid, columns = ['id', 'name', 'symbol', 'uuid'], connection = mysql.pool) {
+    // Replace plain uuid column name with BIN_TO_UUID mysql function to return the uuid string properly
+    columns = columns.map(function(column) {
+        if(column === 'uuid'){
+            return knex.raw('BIN_TO_UUID(uuid) as `uuid`');
+        }
+        return column;
+    });
     return new Promise(function (resolve, reject) {
-        connection.query('SELECT id, name, symbol, BIN_TO_UUID(uuid) AS uuid FROM `coin` WHERE `uuid` = UUID_TO_BIN(?)', [uuid], function (err, rows, fields) {
+        const query = knex('coin')
+            .select(columns)
+            .whereRaw('`uuid` = UUID_TO_BIN(?)', [uuid]);
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             if (rows[0] === undefined) return reject(new Error('Coin not found'));
             resolve(rows[0]);
@@ -41,21 +64,29 @@ exports.getByUuid = function (uuid, connection = mysql.pool) {
  * @param {Number} previousId The row id to start looking. Used for pagination, and defaults to 0
  * @param {Number} limit The amount of rows to retrieve. Defaults to 10
  * @param {String} orderBy How to order the returned rows. Defaults to "name"
+ * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
+ * @param {String[]} columns The columns to retrieve from the database
  * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of coin data if it's successful
  */
-exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'name', connection = mysql.pool) {
-    return new Promise(function (resolve, reject) {
-        let query;
-        let parameters;
-        if (previousId === 0) {
-            query = 'SELECT id, name, symbol, BIN_TO_UUID(uuid) AS uuid FROM `coin` WHERE `name` = ? ORDER BY ? LIMIT ?';
-            parameters = [name, orderBy, limit];
-        } else {
-            query = 'SELECT id, name, symbol, BIN_TO_UUID(uuid) AS uuid FROM `coin` WHERE `id` > ? AND `name` = ? ORDER BY ? LIMIT ?';
-            parameters = [previousId, name, orderBy, limit];
+exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'name', order = 'desc', columns = ['id', 'name', 'symbol', 'uuid'], connection = mysql.pool) {
+    // Replace plain uuid column name with BIN_TO_UUID mysql function to return the uuid string properly
+    columns = columns.map(function(column) {
+        if(column === 'uuid'){
+            return knex.raw('BIN_TO_UUID(uuid) as `uuid`');
         }
-        connection.query(query, parameters, function (err, rows, fields) {
+        return column;
+    });
+    return new Promise(function (resolve, reject) {
+        let query = knex('coin')
+            .select(columns)
+            .where('name', name)
+            .orderBy(orderBy, order)
+            .limit(limit);
+        if(previousId > 0){
+            query = query.where('id', '>', previousId)
+        }
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             resolve(rows);
         });
@@ -72,7 +103,13 @@ exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'n
  */
 exports.create = function (name, symbol, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        connection.query('INSERT INTO `coin` (name, symbol, uuid) VALUES (?, ?, UUID_TO_BIN(UUID()))', [name, symbol], function (err, result, fields) {
+        const query = knex('coin')
+            .insert({
+                name: 'Adrian',
+                symbol: 'AS',
+                uuid: knex.raw('UUID_TO_BIN(UUID())')
+            });
+        connection.query(query, [name, symbol], function (err, result, fields) {
             if (err) return reject(err);
             resolve(result.insertId);
         });
@@ -89,7 +126,10 @@ exports.create = function (name, symbol, connection = mysql.pool) {
  */
 exports.updateName = function (id, newName, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        connection.query('UPDATE `coin` SET `name` = ? WHERE `id` = ?', [newName, id], function (err, result, fields) {
+        const query = knex('coin')
+            .where('id', id)
+            .update({name: newName});
+        connection.query(query.toQuery(), function (err, result, fields) {
             if (err) return reject(err);
             resolve(id);
         });
@@ -105,10 +145,11 @@ exports.updateName = function (id, newName, connection = mysql.pool) {
  * @returns {Promise} A promise that resolves to the changed id if the coin is updated successfully
  */
 exports.updateSymbol = function (id, newSymbol, connection = mysql.pool) {
-    return new Promise(function (resolve, reject) {
-        connection.query('UPDATE `coin` SET `symbol` = ? WHERE `id` = ?', [newSymbol, id], function (err, result, fields) {
-            if (err) return reject(err);
-            resolve(id);
-        });
+    const query = knex('coin')
+        .where('id', id)
+        .update({symbol: newSymbol});
+    connection.query(query.toQuery(), function (err, result, fields) {
+        if (err) return reject(err);
+        resolve(id);
     });
 };
