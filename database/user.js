@@ -1,4 +1,5 @@
 const mysql = require('./mysql');
+const knex = require('knex')({client: 'mysql'});
 const bcrypt = require('bcrypt');
 
 /**
@@ -12,12 +13,22 @@ const SALT_ROUNDS = 10;
  * Get a user by their ID
  *
  * @param {Number} id The integer ID to look for
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {String[]} columns The columns to retrieve from the database
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the user data if it's successful
  */
-exports.getById = function (id, connection = mysql.pool) {
+exports.getById = function (id, columns = ['id', 'email', 'password', 'name', 'uuid'], connection = mysql.pool) {
+    columns = columns.map(function(column) {
+        if(column === 'uuid'){
+            return knex.raw('BIN_TO_UUID(uuid) as `uuid`');
+        }
+        return column;
+    });
     return new Promise(function (resolve, reject) {
-        connection.query('SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `id` = ?', [id], function (err, rows, fields) {
+        const query = knex('user')
+            .select(columns)
+            .where('id', id);
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             if (rows[0] === undefined) return reject(new Error('User not found'));
             resolve(rows[0]);
@@ -29,12 +40,22 @@ exports.getById = function (id, connection = mysql.pool) {
  * Get a user by their UUID
  *
  * @param {String} uuid The UUID string to look for
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {String[]} columns The columns to retrieve from the database
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the user data if it's successful
  */
-exports.getByUuid = function (uuid, connection = mysql.pool) {
+exports.getByUuid = function (uuid, columns = ['id', 'email', 'password', 'name', 'uuid'], connection = mysql.pool) {
+    columns = columns.map(function(column) {
+        if(column === 'uuid'){
+            return knex.raw('BIN_TO_UUID(uuid) as `uuid`');
+        }
+        return column;
+    });
     return new Promise(function (resolve, reject) {
-        connection.query('SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `uuid` = UUID_TO_BIN(?)', [uuid], function (err, rows, fields) {
+        const query = knex('user')
+            .select(columns)
+            .whereRaw('`uuid` = UUID_TO_BIN(?)', [uuid]);
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             if (rows[0] === undefined) return reject(new Error('User not found'));
             resolve(rows[0]);
@@ -46,12 +67,22 @@ exports.getByUuid = function (uuid, connection = mysql.pool) {
  * Get a user by their email
  *
  * @param {String} email The email string to look for
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {String[]} columns The columns to retrieve from the database
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of user data if it's successful
  */
-exports.getListByEmail = function (email, connection = mysql.pool) {
+exports.getByEmail = function (email, columns = ['id', 'email', 'password', 'name', 'uuid'], connection = mysql.pool) {
+    columns = columns.map(function(column) {
+        if(column === 'uuid'){
+            return knex.raw('BIN_TO_UUID(uuid) as `uuid`');
+        }
+        return column;
+    });
     return new Promise(function (resolve, reject) {
-        connection.query('SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `email` = ?', [email], function (err, rows, fields) {
+        const query = knex('user')
+            .select(columns)
+            .where('email', email);
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             if (rows[0] === undefined) return reject(new Error('User not found'));
             resolve(rows[0]);
@@ -66,21 +97,28 @@ exports.getListByEmail = function (email, connection = mysql.pool) {
  * @param {Number} previousId The row id to start looking. Used for pagination, and defaults to 0
  * @param {Number} limit The amount of rows to retrieve. Defaults to 10
  * @param {String} orderBy How to order the returned rows. Defaults to "name"
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
+ * @param {String[]} columns The columns to retrieve from the database
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of user data if it's successful
  */
-exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'name', connection = mysql.pool) {
-    return new Promise(function (resolve, reject) {
-        let query;
-        let parameters;
-        if (previousId === 0) {
-            query = 'SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `name` = ? ORDER BY ? LIMIT ?';
-            parameters = [name, orderBy, limit];
-        } else {
-            query = 'SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `id` > ? AND `name` = ? ORDER BY ? LIMIT ?';
-            parameters = [previousId, name, orderBy, limit];
+exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'name', order='desc', columns = ['id', 'email', 'password', 'name', 'uuid'], connection = mysql.pool) {
+    columns = columns.map(function(column) {
+        if(column === 'uuid'){
+            return knex.raw('BIN_TO_UUID(uuid) as `uuid`');
         }
-        connection.query(query, parameters, function (err, rows, fields) {
+        return column;
+    });
+    return new Promise(function (resolve, reject) {
+        let query = knex('user')
+            .select(columns)
+            .where('name', name)
+            .orderBy(orderBy, order)
+            .limit(limit);
+        if(previousId > 0){
+            query = query.where('id', '>', previousId)
+        }
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             resolve(rows);
         });
@@ -94,21 +132,22 @@ exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'n
  * @param {Number} previousId The row id to start looking. Used for pagination, and defaults to 0
  * @param {Number} limit The amount of rows to retrieve. Defaults to 10
  * @param {String} orderBy How to order the returned rows. Defaults to "name"
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
+ * @param {String[]} columns The columns to retrieve from the database
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of user data if it's successful
  */
-exports.searchByName = function (name, previousId = 0, limit = 10, orderBy = 'name', connection = mysql.pool) {
+exports.searchByName = function (name, previousId = 0, limit = 10, orderBy = 'name', order='desc', columns = ['id', 'email', 'password', 'name', 'uuid'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        let query;
-        let parameters;
-        if (previousId === 0) {
-            query = 'SELECT id, email, password, name, BIN_TO_UUID(uuid) as uuid FROM `user` WHERE `name` LIKE ? ORDER BY ? LIMIT ?';
-            parameters = [name + '%', orderBy, limit];
-        } else {
-            query = 'SELECT id, email, password, name, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `id` > ? AND `name` LIKE ? ORDER BY ? LIMIT ?';
-            parameters = [previousId, name + '%', orderBy, limit];
+        let query = knex('user')
+            .select(columns)
+            .where('name', 'like', name + '%')
+            .orderBy(orderBy, order)
+            .limit(limit);
+        if(previousId > 0){
+            query = query.where('id', '>', previousId)
         }
-        connection.query(query, parameters, function (err, rows, fields) {
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             resolve(rows);
         });
@@ -121,7 +160,7 @@ exports.searchByName = function (name, previousId = 0, limit = 10, orderBy = 'na
  * @param {String} email The email to use for the user. Must be unique or it returns an error
  * @param {String} password The password to use for the user
  * @param {String} name The name to use for the user
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the inserted ID in the table if the user is created successfully
  */
 exports.create = function (email, password, name, connection = mysql.pool) {
@@ -134,7 +173,14 @@ exports.create = function (email, password, name, connection = mysql.pool) {
                 if (err) {
                     return reject(err);
                 }
-                connection.query('INSERT INTO `user` (email, password, name, uuid) VALUES (?, ?, ?, UUID_TO_BIN(UUID()))', [email, hash, name], function (err, result, fields) {
+                const query = knex('user')
+                    .insert({
+                        email: email,
+                        password: hash,
+                        name: name,
+                        uuid: knex.raw('UUID_TO_BIN(UUID())')
+                    });
+                connection.query(query.toQuery(), function (err, result, fields) {
                     if (err) return reject(err);
                     resolve(result.insertId);
                 });
@@ -148,13 +194,15 @@ exports.create = function (email, password, name, connection = mysql.pool) {
  *
  * @param {Number} id The ID of the user being updated
  * @param {String} newEmail The new email to set for the user
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the changed id if the user is updated successfully
  */
 exports.updateEmail = function (id, newEmail, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        bcrypt.genSalt(salt)
-        connection.query('UPDATE `user` SET `email` = ? WHERE `id` = ?', [newEmail, id], function (err, result, fields) {
+        const query = knex('user')
+            .where('id', id)
+            .update({email: newEmail});
+        connection.query(query.toQuery(), function (err, result, fields) {
             if (err) return reject(err);
             resolve(id);
         });
@@ -166,7 +214,7 @@ exports.updateEmail = function (id, newEmail, connection = mysql.pool) {
  *
  * @param {Number} id The ID of the user being updated
  * @param {String} newPassword The new password to set for the user
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the changed id if the user is updated successfully
  */
 exports.updatePassword = function (id, newPassword, connection = mysql.pool) {
@@ -179,7 +227,10 @@ exports.updatePassword = function (id, newPassword, connection = mysql.pool) {
                 if (err) {
                     return reject(err);
                 }
-                connection.query('UPDATE `user` SET `password` = ? WHERE `id` = ?', [hash, id], function (err, result, fields) {
+                const query = knex('user')
+                    .where('id', id)
+                    .update({password: hash});
+                connection.query(query.toQuery(), function (err, result, fields) {
                     if (err) return reject(err);
                     resolve(id);
                 });
@@ -193,12 +244,15 @@ exports.updatePassword = function (id, newPassword, connection = mysql.pool) {
  *
  * @param {Number} id The ID of the user being updated
  * @param {String} newName The new name to set for the user
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the changed id if the user is updated successfully
  */
 exports.updateName = function (id, newName, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        connection.query('UPDATE `user` SET `name` = ? WHERE `id` = ?', [newName, id], function (err, result, fields) {
+        const query = knex('user')
+            .where('id', id)
+            .update({name: newName});
+        connection.query(query.toQuery(), function (err, result, fields) {
             if (err) return reject(err);
             resolve(id);
         });
@@ -210,12 +264,15 @@ exports.updateName = function (id, newName, connection = mysql.pool) {
  *
  * @param {String} email The ID of the user that's being compared
  * @param {String} password The password that's being compared
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the id and uuid of the user if the password matches or false if it doesn't
  */
 exports.comparePassword = function (email, password, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        connection.query('SELECT `id`, `password`, BIN_TO_UUID(uuid) AS uuid FROM `user` WHERE `email` = ?', [email], function (err, rows, fields) {
+        const query = knex('user')
+            .select('id', 'password', knex.raw('BIN_TO_UUID(uuid) as `uuid`'))
+            .where('email', email);
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             if (rows[0] === undefined) return reject(new Error('User not found'));
             const databasePassword = rows[0].password;
