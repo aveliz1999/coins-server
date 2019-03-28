@@ -1,15 +1,20 @@
 const mysql = require('./mysql');
+const knex = require('knex')({client: 'mysql'});
 
 /**
  * Get a transaction by its ID
  *
  * @param {Number} id The integer ID to look for
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {String[]} columns The columns to retrieve from the database
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the transaction data if it's successful
  */
-exports.getById = function (id, connection = mysql.pool) {
+exports.getById = function (id, columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        connection.query('SELECT * FROM `transaction` WHERE `id` = ?', [id], function (err, rows, fields) {
+        const query = knex('transaction')
+            .select(columns)
+            .where('id', id);
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             if (rows[0] === undefined) return reject(new Error('Transaction not found'));
             resolve(rows[0]);
@@ -24,21 +29,22 @@ exports.getById = function (id, connection = mysql.pool) {
  * @param {Number} previousId The row id to start looking. Used for pagination, and defaults to 0
  * @param {Number} limit The amount of rows to retrieve. Defaults to 10
  * @param {String} orderBy How to order the returned rows. Defaults to "timestamp"
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
+ * @param {String[]} columns The columns to retrieve from the database
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of transaction data if it's successful
  */
-exports.getListBySender = function (senderId, previousId = 0, limit = 10, orderBy = 'timestamp', connection = mysql.pool) {
+exports.getListBySender = function (senderId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        let query;
-        let parameters;
-        if (previousId === 0) {
-            query = 'SELECT * FROM `transaction` WHERE `sender` = ? ORDER BY ? LIMIT ?';
-            parameters = [senderId, orderBy, limit];
-        } else {
-            query = 'SELECT * FROM `transaction` WHERE `id` > ? AND `sender` = ? ORDER BY ? LIMIT ?';
-            parameters = [previousId, senderId, orderBy, limit];
+        let query = knex('transaction')
+            .select(columns)
+            .where('sender', senderId)
+            .orderBy(orderBy, order)
+            .limit(limit);
+        if(previousId > 0){
+            query = query.where('id', '>', previousId)
         }
-        connection.query(query, parameters, function (err, rows, fields) {
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             resolve(rows);
         });
@@ -53,21 +59,22 @@ exports.getListBySender = function (senderId, previousId = 0, limit = 10, orderB
  * @param {Number} previousId The row id to start looking. Used for pagination, and defaults to 0
  * @param {Number} limit The amount of rows to retrieve. Defaults to 10
  * @param {String} orderBy How to order the returned rows. Defaults to "timestamp"
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
+ * @param {String[]} columns The columns to retrieve from the database
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of transaction data if it's successful
  */
-exports.getListByReceiver = function (receiverId, previousId = 0, limit = 10, orderBy = 'timestamp', connection = mysql.pool) {
+exports.getListByReceiver = function (receiverId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        let query;
-        let parameters;
-        if (previousId === 0) {
-            query = 'SELECT * FROM `transaction` WHERE `receiver` = ? ORDER BY ? LIMIT ?';
-            parameters = [receiverId, orderBy, limit];
-        } else {
-            query = 'SELECT * FROM `transaction` WHERE `id` > ? AND `receiver` = ? ORDER BY ? LIMIT ?';
-            parameters = [previousId, receiverId, orderBy, limit];
+        let query = knex('transaction')
+            .select(columns)
+            .where('receiver', receiverId)
+            .orderBy(orderBy, order)
+            .limit(limit);
+        if(previousId > 0){
+            query = query.where('id', '>', previousId)
         }
-        connection.query(query, parameters, function (err, rows, fields) {
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             resolve(rows);
         });
@@ -81,21 +88,23 @@ exports.getListByReceiver = function (receiverId, previousId = 0, limit = 10, or
  * @param {Number} previousId The row id to start looking. Used for pagination, and defaults to 0
  * @param {Number} limit The amount of rows to retrieve. Defaults to 10
  * @param {String} orderBy How to order the returned rows. Defaults to "timestamp"
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
+ * @param {String[]} columns The columns to retrieve from the database
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of transaction data if it's successful
  */
-exports.getListByUsers = function (userId, previousId = 0, limit = 10, orderBy = 'timestamp', connection = mysql.pool) {
+exports.getListByUsers = function (userId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        let query;
-        let parameters;
-        if (previousId === 0) {
-            query = 'SELECT * FROM `transaction` WHERE `receiver` = ? OR `sender` = ? ORDER BY ? LIMIT ?';
-            parameters = [userId, userId, orderBy, limit];
-        } else {
-            query = 'SELECT * FROM `transaction` WHERE `id` > ? AND (`receiver` = ? OR `sender` = ?) ORDER BY ? LIMIT ?';
-            parameters = [previousId, userId, userId, orderBy, limit];
+        let query = knex('transaction')
+            .select(columns)
+            .where('receiver', userId)
+            .orWhere('sender', userId)
+            .orderBy(orderBy, order)
+            .limit(limit);
+        if(previousId > 0){
+            query = query.where('id', '>', previousId)
         }
-        connection.query(query, parameters, function (err, rows, fields) {
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             resolve(rows);
         });
@@ -109,21 +118,22 @@ exports.getListByUsers = function (userId, previousId = 0, limit = 10, orderBy =
  * @param {Number} previousId The row id to start looking. Used for pagination, and defaults to 0
  * @param {Number} limit The amount of rows to retrieve. Defaults to 10
  * @param {String} orderBy How to order the returned rows. Defaults to "timestamp"
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
+ * @param {String[]} columns The columns to retrieve from the database
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of transaction data if it's successful
  */
-exports.getListByCoin = function (coinId, previousId = 0, limit = 10, orderBy = 'timestamp', connection = mysql.pool) {
+exports.getListByCoin = function (coinId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        let query;
-        let parameters;
-        if (previousId === 0) {
-            query = 'SELECT * FROM `transaction` WHERE `coin` = ? ORDER BY ? LIMIT ?';
-            parameters = [coinId, orderBy, limit];
-        } else {
-            query = 'SELECT * FROM `transaction` WHERE `id` > ? AND `coin` = ? ORDER BY ? LIMIT ?';
-            parameters = [previousId, coinId, orderBy, limit];
+        let query = knex('transaction')
+            .select(columns)
+            .where('coin', coinId)
+            .orderBy(orderBy, order)
+            .limit(limit);
+        if(previousId > 0){
+            query = query.where('id', '>', previousId)
         }
-        connection.query(query, parameters, function (err, rows, fields) {
+        connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
             resolve(rows);
         });
@@ -137,12 +147,20 @@ exports.getListByCoin = function (coinId, previousId = 0, limit = 10, orderBy = 
  * @param {Number} receiverId the id of the transaction receiver
  * @param {Number} coinId The id of the coin the transaction uses
  * @param {Number} amount The amount transferred in the transaction
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the inserted ID if the transaction is created successfully
  */
 exports.create = function (senderId, receiverId, coinId, amount, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
-        connection.query('INSERT INTO `transaction` (sender, receiver, coin, amount, timestamp) VALUES (?, ?, ?, ?, NOW(3))', [senderId, receiverId, coinId, amount], function (err, result, fields) {
+        const query = knex('transaction')
+            .insert({
+                sender: senderId,
+                receiver: receiverId,
+                coin: coinId,
+                amount: amount,
+                timestamp: knex.raw('NOW(3)')
+            });
+        connection.query(query.toQuery(), function (err, result, fields) {
             if (err) return reject(err);
             resolve(result.insertId);
         });
