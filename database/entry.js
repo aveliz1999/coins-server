@@ -6,7 +6,7 @@ const knex = require('knex')({client: 'mysql'});
  *
  * @param {Number} id The integer ID to look for
  * @param {String[]} columns The columns to retrieve from the database
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the entry data if it's successful
  */
 exports.getById = function (id, columns = ['id', 'user', 'coin', 'amount'], connection = mysql.pool) {
@@ -28,7 +28,7 @@ exports.getById = function (id, columns = ['id', 'user', 'coin', 'amount'], conn
  * @param {Number} coinId The coin it belongs to
  * @param {Number} userId The user it belongs to
  * @param {String[]} columns The columns to retrieve from the database
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the entry data if it's successful
  */
 exports.getByCoinAndUser = function(coinId, userId, columns = ['id', 'user', 'coin', 'amount'], connection = mysql.pool) {
@@ -54,7 +54,7 @@ exports.getByCoinAndUser = function(coinId, userId, columns = ['id', 'user', 'co
  * @param {String} orderBy How to order the returned rows. Defaults to "amount"
  * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
  * @param {String[]} columns The columns to retrieve from the database
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of entry data if it's successful
  */
 exports.getListByUser = function (userId, previousId = 0, limit = 10, orderBy = 'amount', order = 'desc', columns = ['id', 'user', 'coin', 'amount'], connection = mysql.pool) {
@@ -83,7 +83,7 @@ exports.getListByUser = function (userId, previousId = 0, limit = 10, orderBy = 
  * @param {String} orderBy How to order the returned rows. Defaults to "amount"
  * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
  * @param {String[]} columns The columns to retrieve from the database
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of entry data if it's successful
  */
 exports.getListByCoin = function (coinId, previousId = 0, limit = 10, orderBy = 'amount', order = 'desc', columns = ['id', 'user', 'coin', 'amount'], connection = mysql.pool) {
@@ -109,7 +109,7 @@ exports.getListByCoin = function (coinId, previousId = 0, limit = 10, orderBy = 
  * @param {Number} userId The id of the user the entry belongs to
  * @param {Number} coinId The id of the coin the entry uses
  * @param {Number} amount The amount in the entry. Defaults to 0
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the inserted ID if the entry is created successfully
  */
 exports.create = function (userId, coinId, amount = 0, connection = mysql.pool) {
@@ -132,7 +132,7 @@ exports.create = function (userId, coinId, amount = 0, connection = mysql.pool) 
  *
  * @param {Number} id The ID of the entry being updated
  * @param {String} newAmount The new amount to set for the entry
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the changed id if the entry is updated successfully
  */
 exports.updateAmount = function (id, newAmount, connection = mysql.pool) {

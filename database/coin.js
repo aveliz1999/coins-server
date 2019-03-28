@@ -6,7 +6,7 @@ const knex = require('knex')({client: 'mysql'});
  *
  * @param {Number} id The integer ID to look for
  * @param {String[]} columns The columns to retrieve from the database
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the coin data if it's successful
  */
 exports.getById = function (id, columns = ['id', 'name', 'symbol', 'uuid'], connection = mysql.pool) {
@@ -34,7 +34,7 @@ exports.getById = function (id, columns = ['id', 'name', 'symbol', 'uuid'], conn
  *
  * @param {String} uuid The UUID string to look for
  * @param {String[]} columns The columns to retrieve from the database
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the coin data if it's successful
  */
 exports.getByUuid = function (uuid, columns = ['id', 'name', 'symbol', 'uuid'], connection = mysql.pool) {
@@ -66,7 +66,7 @@ exports.getByUuid = function (uuid, columns = ['id', 'name', 'symbol', 'uuid'], 
  * @param {String} orderBy How to order the returned rows. Defaults to "name"
  * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
  * @param {String[]} columns The columns to retrieve from the database
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of coin data if it's successful
  */
 exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'name', order = 'desc', columns = ['id', 'name', 'symbol', 'uuid'], connection = mysql.pool) {
@@ -98,7 +98,7 @@ exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'n
  *
  * @param {String} name The name to use for the coin
  * @param {String} symbol The symbol to use for the coin
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the inserted ID if the coin is created successfully
  */
 exports.create = function (name, symbol, connection = mysql.pool) {
@@ -121,7 +121,7 @@ exports.create = function (name, symbol, connection = mysql.pool) {
  *
  * @param {Number} id The ID of the coin being updated
  * @param {String} newName The new name to set for the coin
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the changed id if the coin is updated successfully
  */
 exports.updateName = function (id, newName, connection = mysql.pool) {
@@ -141,7 +141,7 @@ exports.updateName = function (id, newName, connection = mysql.pool) {
  *
  * @param {Number} id The ID of the coin being updated
  * @param {String} newSymbol The new symbol to set for the coin
- * @param {Connection} connection The connection to use for the query. By default retrieves a new one from the connection pool
+ * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the changed id if the coin is updated successfully
  */
 exports.updateSymbol = function (id, newSymbol, connection = mysql.pool) {
