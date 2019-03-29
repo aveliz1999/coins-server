@@ -9,7 +9,7 @@ const knex = require('knex')({client: 'mysql'});
  * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the transaction data if it's successful
  */
-exports.getById = function (id, columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp'], connection = mysql.pool) {
+exports.getById = function (id, columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp', 'message'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
         const query = knex('transaction')
             .select(columns)
@@ -34,7 +34,7 @@ exports.getById = function (id, columns = ['id', 'sender', 'receiver', 'coin', '
  * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of transaction data if it's successful
  */
-exports.getListBySender = function (senderId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp'], connection = mysql.pool) {
+exports.getListBySender = function (senderId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp', 'message'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
         let query = knex('transaction')
             .select(columns)
@@ -64,7 +64,7 @@ exports.getListBySender = function (senderId, previousId = 0, limit = 10, orderB
  * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of transaction data if it's successful
  */
-exports.getListByReceiver = function (receiverId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp'], connection = mysql.pool) {
+exports.getListByReceiver = function (receiverId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp', 'message'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
         let query = knex('transaction')
             .select(columns)
@@ -93,7 +93,7 @@ exports.getListByReceiver = function (receiverId, previousId = 0, limit = 10, or
  * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of transaction data if it's successful
  */
-exports.getListByUsers = function (userId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp'], connection = mysql.pool) {
+exports.getListByUsers = function (userId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp', 'message'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
         let query = knex('transaction')
             .select(columns)
@@ -123,7 +123,7 @@ exports.getListByUsers = function (userId, previousId = 0, limit = 10, orderBy =
  * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of transaction data if it's successful
  */
-exports.getListByCoin = function (coinId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp'], connection = mysql.pool) {
+exports.getListByCoin = function (coinId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp', 'message'], connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
         let query = knex('transaction')
             .select(columns)
@@ -150,7 +150,7 @@ exports.getListByCoin = function (coinId, previousId = 0, limit = 10, orderBy = 
  * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to the inserted ID if the transaction is created successfully
  */
-exports.create = function (senderId, receiverId, coinId, amount, connection = mysql.pool) {
+exports.create = function (senderId, receiverId, coinId, amount, message, connection = mysql.pool) {
     return new Promise(function (resolve, reject) {
         const query = knex('transaction')
             .insert({
@@ -158,6 +158,7 @@ exports.create = function (senderId, receiverId, coinId, amount, connection = my
                 receiver: receiverId,
                 coin: coinId,
                 amount: amount,
+                message: message,
                 timestamp: knex.raw('NOW(3)')
             });
         connection.query(query.toQuery(), function (err, result, fields) {

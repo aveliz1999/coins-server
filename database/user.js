@@ -138,6 +138,12 @@ exports.getListByName = function (name, previousId = 0, limit = 10, orderBy = 'n
  * @returns {Promise} A promise that resolves to a list of user data if it's successful
  */
 exports.searchByName = function (name, previousId = 0, limit = 10, orderBy = 'name', order='desc', columns = ['id', 'email', 'password', 'name', 'uuid'], connection = mysql.pool) {
+    columns = columns.map(function(column) {
+        if(column === 'uuid'){
+            return knex.raw('BIN_TO_UUID(uuid) as `uuid`');
+        }
+        return column;
+    });
     return new Promise(function (resolve, reject) {
         let query = knex('user')
             .select(columns)

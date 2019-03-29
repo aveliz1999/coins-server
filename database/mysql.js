@@ -47,6 +47,7 @@ const createTransactionTableQuery = 'CREATE TABLE IF NOT EXISTS `transaction` (\
     '  `coin` int(10) unsigned NOT NULL,\n' +
     '  `amount` int(10) unsigned NOT NULL,\n' +
     '  `timestamp` datetime(3) NOT NULL,\n' +
+    '  `message` char(64) NOT NULL,\n ' +
     '  PRIMARY KEY (`id`),\n' +
     '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
     '  KEY `sender_idx` (`sender`),\n' +
