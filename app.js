@@ -6,8 +6,6 @@ const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 const mysql = require('./database/mysql');
 
-const userRouter = require('./routes/users');
-
 const app = express();
 
 // Initialize the cookie session with a MySQL database
@@ -54,7 +52,13 @@ const sanitizeResponse = function(req, res, next) {
 };
 app.use(sanitizeResponse);
 
-app.use('/users', userRouter);
+const usersRouter = require('./routes/users');
+const transactionsRouter = require('./routes/transactions');
+const coinsRouter = require('./routes/coins');
+
+app.use('/users', usersRouter);
+app.use('/transactions', transactionsRouter);
+app.use('/coins', coinsRouter);
 
 // Catch 404 and forward to error handler
 app.use(function(req, res, next) {

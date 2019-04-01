@@ -96,7 +96,8 @@ const createRequestTableQuery = 'CREATE TABLE IF NOT EXISTS `request` (\n' +
     '  `sender` int(10) unsigned NOT NULL,\n' +
     '  `coin` int(10) unsigned NOT NULL,\n' +
     '  `amount` int(10) unsigned NOT NULL,\n' +
-    '  `uuid` varchar(45) NOT NULL,\n' +
+    '  `message` char(64) NOT NULL,\n' +
+    '  `uuid` binary(16) NOT NULL,\n' +
     '  PRIMARY KEY (`id`),\n' +
     '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
     '  UNIQUE KEY `uuid_UNIQUE` (`uuid`),\n' +

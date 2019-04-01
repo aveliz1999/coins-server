@@ -53,7 +53,7 @@ router.post('/', function (req, res) {
                         return mysql.commitTransaction(connection);
                     })
                     .then(function() {
-                        res.status(200).send({data: 'User created successfully'});
+                        res.status(200).send({message: 'User created successfully'});
                     })
                     .catch(function (err) {
                         if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.match(/(?<=key ').+(?=')/)[0] === 'email_UNIQUE') {
@@ -71,54 +71,6 @@ router.post('/', function (req, res) {
 });
 
 /**
- * Get basic information about the logged on user.
- * User field must be set in the session to be considered logged on.
- *
- * Returns the user information (name, email, uuid) and list of coin information (coin name, symbol, uuid, and amount)
- */
-router.get('/', function (req,res) {
-    if(!req.session.user) {
-        res.status(403).send('No access');
-        return;
-    }
-    const toReturn = {};
-    entry.getListByUser(req.session.user, 0, Number.MAX_SAFE_INTEGER)
-        .then(function (entries) {
-            toReturn.coins = entries.map(function(entry) {
-                return {amount: entry.amount};
-            });
-            const coinIds = new Set(entries.map(function (entry) {
-                return entry.coin;
-            }));
-            const promises = [];
-            for(let coinId of coinIds) {
-                promises.push(coin.getById(coinId));
-            }
-            return Promise.all(promises);
-        })
-        .then(function (coins) {
-            for(let i = 0; i < toReturn.coins.length; i++) {
-                toReturn.coins[i].name = coins[i].name;
-                toReturn.coins[i].symbol = coins[i].symbol;
-                toReturn.coins[i].coinId = coins[i].uuid;
-            }
-            return user.getById(req.session.user);
-        })
-        .then(function(user) {
-            toReturn.user = {
-                email: user.email,
-                name: user.name,
-                id: user.uuid
-            };
-            res.status(200).send(toReturn);
-        })
-        .catch(function (err) {
-            res.status(500).send('An error has occurred. Please try again.');
-            throw err;
-        });
-});
-
-/**
  * Attempt to log in a user with the information sent in a POST request to /users/login.
  * If the email and password match the information in the database, the user's UUID is sent in the response and the
  * user's ID is set in their session information.
@@ -126,7 +78,7 @@ router.get('/', function (req,res) {
  * Requires an email of max 50 characters and a password between 8 and 32 characters (that follows a specific regex).
  */
 router.post('/login', function (req, res) {
-    const registerSchema = {
+    const loginSchema = {
         email: Joi.string()
             .email()
             .max(50)
@@ -137,7 +89,7 @@ router.post('/login', function (req, res) {
             .regex(/^[ \!"#\$%&'\(\)\*\+,\-\.\/\:;\<\=\>\?@\[\\\]\^_`\{\|\}~a-zA-Z0-9]+$/)
             .required()
     };
-    Joi.validate(req.body, registerSchema, function (err, value) {
+    Joi.validate(req.body, loginSchema, function (err, value) {
         if (err) {
             res.status(400).send({message: err.message});
         } else {
@@ -146,7 +98,7 @@ router.post('/login', function (req, res) {
                     if (result) {
                         req.session.user = result.id;
                         res.cookie('authenticated', req.sessionID, {maxAge: 3600000, httpOnly: false});
-                        res.status(200).send({data: result.uuid});
+                        res.status(200).send({userId: result.uuid});
                     } else {
                         res.status(400).send({message: 'Incorrect username or password.'})
                     }
@@ -161,6 +113,18 @@ router.post('/login', function (req, res) {
                 });
         }
     });
+});
+
+/**
+ * Middleware to only allow requests that are authenticated or reply with a 403 message.
+ */
+router.use(function(req, res, next) {
+    if(req.session.user) {
+        next();
+    }
+    else {
+        res.status(403).send({message: 'Unauthorized'});
+    }
 });
 
 /**
@@ -182,7 +146,7 @@ router.get('/search/:name', function (req, res) {
             user.searchByName(value.name)
                 .then(function (users) {
                     res.status(200).send(
-                        users.map(function (user) {
+                        users.filter(user => user.id !== req.session.user).map(function (user) {
                             delete user.id;
                             delete user.password;
                             return user;
