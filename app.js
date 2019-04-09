@@ -31,7 +31,6 @@ app.use(session(appSession));
 app.use(logger('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Use middleware to html sanitize all output to the client
 const sanitize = require('sanitize-html');
@@ -59,6 +58,20 @@ const coinsRouter = require('./routes/coins');
 app.use('/users', usersRouter);
 app.use('/transactions', transactionsRouter);
 app.use('/coins', coinsRouter);
+
+/**
+ * Middleware to disallow access to media if not authorized.
+ * Returns a 403 Unauthorized if the user is not logged in.
+ */
+app.use(function(req, res, next) {
+  if(req.session.user) {
+    next();
+  }
+  else {
+    res.status(403).send({message: 'Unauthorized'});
+  }
+});
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Catch 404 and forward to error handler
 app.use(function(req, res, next) {

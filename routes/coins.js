@@ -29,7 +29,7 @@ router.get('/', async function(req, res) {
         });
         const coins = await Promise.all(promises);
         for(let coin = 0; coin < coins.length; coin++) {
-            coins[coin].amount = entries[coin].amount / 100.0;
+            coins[coin].amount = entries[coin].amount;
             delete coins[coin].id;
         }
         res.status(200).send(coins);
