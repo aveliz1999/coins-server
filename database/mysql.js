@@ -98,6 +98,7 @@ const createRequestTableQuery = 'CREATE TABLE IF NOT EXISTS `request` (\n' +
     '  `amount` int(10) unsigned NOT NULL,\n' +
     '  `message` char(64) NOT NULL,\n' +
     '  `uuid` binary(16) NOT NULL,\n' +
+    '  `timestamp` datetime(3) NOT NULL,\n' +
     '  PRIMARY KEY (`id`),\n' +
     '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
     '  UNIQUE KEY `uuid_UNIQUE` (`uuid`),\n' +

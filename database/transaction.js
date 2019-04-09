@@ -86,27 +86,64 @@ exports.getListByReceiver = function (receiverId, previousId = 0, limit = 10, or
  *
  * @param {Number} userId The id of the sender/receiver to look for
  * @param {Number} previousId The row id to start looking. Used for pagination, and defaults to 0
+ * @param {String} idOperator The operator (<, >, =) to use in the where for the previous id
  * @param {Number} limit The amount of rows to retrieve. Defaults to 10
  * @param {String} orderBy How to order the returned rows. Defaults to "timestamp"
  * @param {String} order The way to order the returned rows. Defaults to "desc", or descending
  * @param {String[]} columns The columns to retrieve from the database
+ * @param {boolean} join Whether to retrieve the sender, receiver, and coin information as a JOIN in the query
+ * @param {String[]} joinUserFields The fields to select from the joined sender and receiver
+ * @param {String[]} joinCoinFields The fields to select from the joined coin
  * @param {Connection|Pool} connection The connection to use for the query. By default retrieves a new one from the connection pool
  * @returns {Promise} A promise that resolves to a list of transaction data if it's successful
  */
-exports.getListByUsers = function (userId, previousId = 0, limit = 10, orderBy = 'timestamp', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp', 'message'], connection = mysql.pool) {
+exports.getListByUsers = function (userId, previousId = 0, idOperator = '<', limit = 10, orderBy = 'id', order = 'desc', columns = ['id', 'sender', 'receiver', 'coin', 'amount', 'timestamp', 'message'], join = true, joinUserFields = ['id', 'email', 'password', 'name', 'uuid'], joinCoinFields = ['id', 'name', 'symbol', 'uuid'], connection = mysql.pool) {
+    columns = columns.map(function(column) {
+        return 'transaction.' + column;
+    });
+
+    // If join flag is on (query will JOIN the sender, requester, and sender), add the appropriate fields to the columns
+    if(join) {
+        for(let field of joinUserFields) {
+            if(field !== 'uuid') {
+                columns.push(knex.raw('`sender`.`' + field + '` as `sender_' + field + '`', []));
+                columns.push(knex.raw('`receiver`.`' + field + '` as `receiver_' + field + '`', []));
+            }
+            else{
+                columns.push(knex.raw('BIN_TO_UUID(`sender`.`uuid`)' + ' as `sender_uuid`', []));
+                columns.push(knex.raw('BIN_TO_UUID(`receiver`.`uuid`)' + ' as `receiver_uuid`', []));
+            }
+        }
+        for(let field of joinCoinFields) {
+            if(field !== 'uuid'){
+                columns.push(knex.raw('`coin`.`' + field + '` as `coin_' + field + '`', []));
+            }
+            else{
+                columns.push(knex.raw('BIN_TO_UUID(`coin`.`uuid`) as `coin_uuid`'));
+            }
+
+        }
+        // If join is on, sender, requester, and coin will be an object with the values returned by the join rather than the foreign IDs
+        delete columns.sender;
+        delete columns.receiver;
+        delete columns.coin;
+    }
+
     return new Promise(function (resolve, reject) {
         let query = knex('transaction')
             .select(columns)
-            .where('receiver', userId)
-            .orWhere('sender', userId)
+            .where('transaction.id', idOperator, previousId)
+            .andWhereRaw('(receiver = ? OR sender = ?)', [userId, userId])
             .orderBy(orderBy, order)
             .limit(limit);
-        if(previousId > 0){
-            query = query.where('id', '>', previousId)
+        if(join) {
+            query = query.innerJoin(knex.raw('user as sender', []), 'sender.id', 'sender')
+                .innerJoin(knex.raw('user as receiver', []), 'receiver.id', 'receiver')
+                .innerJoin(knex.raw('coin', []), 'coin.id', 'coin');
         }
         connection.query(query.toQuery(), function (err, rows, fields) {
             if (err) return reject(err);
-            resolve(rows);
+            return resolve(rows);
         });
     });
 };
