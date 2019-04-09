@@ -128,6 +128,20 @@ router.use(function(req, res, next) {
 });
 
 /**
+ * Get the email, name, and UUID of the user signed in to the session
+ */
+router.get('/', async function(req, res) {
+    try{
+        const {email, name, uuid} = user.getById(req.session.user);
+        res.status(200).send({user: {email, name, uuid}});
+    }
+    catch(err) {
+        console.error(err);
+        res.status(500).send({message: 'An error occurred while retrieving the user information. Please try again.'})
+    }
+});
+
+/**
  * Search for users with names that begin with the given name.
  * Returns a list of user objects without the internal ID and the user passwords.
  *
