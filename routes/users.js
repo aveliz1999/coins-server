@@ -132,7 +132,7 @@ router.use(function(req, res, next) {
  */
 router.get('/', async function(req, res) {
     try{
-        const {email, name, uuid} = user.getById(req.session.user);
+        const {email, name, uuid} = await user.getById(req.session.user);
         res.status(200).send({user: {email, name, uuid}});
     }
     catch(err) {
