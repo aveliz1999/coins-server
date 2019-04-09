@@ -13,11 +13,10 @@ const transaction = require('../database/transaction');
  * Middleware to disallow access to any transaction requests unless the user is logged in.
  * Returns a 403 Unauthorized if the user is not logged in.
  */
-router.use(function(req, res, next) {
-    if(req.session.user) {
+router.use(function (req, res, next) {
+    if (req.session.user) {
         next();
-    }
-    else {
+    } else {
         res.status(403).send({message: 'Unauthorized'});
     }
 });
@@ -27,7 +26,7 @@ router.use(function(req, res, next) {
  * All the details of the the transaction must be sent in the body, except for the ID of the user initiating it which
  * is loaded as part of the session under the variable 'user'
  */
-router.post('/', function(req, res) {
+router.post('/', function (req, res) {
     const transactionSchema = {
         target: Joi.string()
             .uuid({
@@ -54,17 +53,17 @@ router.post('/', function(req, res) {
             .required()
     };
     Joi.validate(req.body, transactionSchema, async function (err, values) {
-        if(err) {
+        if (err) {
             res.status(400).send({message: err.message});
         } else {
             const userId = req.session.user;
             const amount = values.amount;
             let connection;
-            try{
+            try {
                 let {id: coinId} = await coin.getByUuid(values.coin);
                 let {id: targetId} = await user.getByUuid(values.target);
 
-                if(values.charging) {
+                if (values.charging) {
                     await request.create(userId, targetId, coinId, amount, values.message);
                     res.status(200).send({message: 'Sent request successfully.'});
                     return;
@@ -74,7 +73,7 @@ router.post('/', function(req, res) {
                 await mysql.beginTransaction(connection);
 
                 const created = await handleCreateTransaction(coinId, userId, targetId, amount, values.message, connection);
-                if(!created) {
+                if (!created) {
                     await mysql.rollbackTransaction(connection);
                     connection.release();
                     return res.status(400).send({message: 'Not enough of this coin to complete this transaction'});
@@ -83,24 +82,20 @@ router.post('/', function(req, res) {
                 connection.release();
 
                 res.status(200).send({message: 'Successfully created the transaction'});
-            }
-            catch(err) {
-                if(connection){
-                    try{
+            } catch (err) {
+                if (connection) {
+                    try {
                         await mysql.rollbackTransaction(connection);
                         connection.release();
-                    }
-                    catch(err) {
+                    } catch (err) {
                         console.log(err);
                     }
                 }
-                if(err.message === 'User not found') {
+                if (err.message === 'User not found') {
                     res.status(400).send({message: 'Please enter a valid user'});
-                }
-                else if(err.message === 'Coin not found') {
+                } else if (err.message === 'Coin not found') {
                     res.status(400).send({message: 'Please enter a valid coin'});
-                }
-                else{
+                } else {
                     res.status(500).send({message: 'An error occurred creating the transaction. Please try again.'});
                     console.log(err);
                 }
@@ -113,7 +108,7 @@ router.post('/', function(req, res) {
  * Accept a request that was sent and create the transaction for the exchange.
  * The user must have enough coins to send and the request ID must be a valid pending request for that user.
  */
-router.post('/acceptRequest', function(req, res) {
+router.post('/acceptRequest', function (req, res) {
     const transactionSchema = {
         requestId: Joi.string()
             .uuid({
@@ -124,7 +119,7 @@ router.post('/acceptRequest', function(req, res) {
             .required()
     };
     Joi.validate(req.body, transactionSchema, async function (err, values) {
-        if(err) {
+        if (err) {
             res.status(400).send({message: err.message});
         } else {
             let connection;
@@ -136,7 +131,7 @@ router.post('/acceptRequest', function(req, res) {
                     await mysql.beginTransaction(connection);
 
                     const created = await handleCreateTransaction(requestResult.coin, requestResult.sender, requestResult.requester, requestResult.amount, requestResult.message, connection);
-                    if(!created) {
+                    if (!created) {
                         await mysql.rollbackTransaction(connection);
                         connection.release();
                         return res.status(400).send({message: 'Not enough of this coin to complete this transaction'});
@@ -146,25 +141,21 @@ router.post('/acceptRequest', function(req, res) {
                     connection.release();
 
                     res.status(200).send({message: 'Successfully created the transaction'});
-                }
-                else{
+                } else {
                     res.status(400).send({message: 'No request with that ID under your user'});
                 }
-            }
-            catch(err) {
-                if(connection){
-                    try{
+            } catch (err) {
+                if (connection) {
+                    try {
                         await mysql.rollbackTransaction(connection);
                         connection.release();
-                    }
-                    catch(err) {
+                    } catch (err) {
                         console.log(err);
                     }
                 }
-                if(err.message === 'Request not found') {
+                if (err.message === 'Request not found') {
                     res.status(400).send({message: 'No request with that ID under your user'});
-                }
-                else{
+                } else {
                     res.status(500).send({message: 'An error occurred creating the transaction. Please try again.'});
                     console.log(err);
                 }
@@ -176,7 +167,7 @@ router.post('/acceptRequest', function(req, res) {
 /**
  * Decline a request that was sent and delete it from the database
  */
-router.post('/declineRequest', function(req, res) {
+router.post('/declineRequest', function (req, res) {
     const transactionSchema = {
         requestId: Joi.string()
             .uuid({
@@ -195,16 +186,13 @@ router.post('/declineRequest', function(req, res) {
                 if (requestResult && requestResult.sender === req.session.user) {
                     await request.delete(requestResult.id);
                     res.status(200).send({message: 'Successfully declined the request'})
-                }
-                else{
+                } else {
                     res.status(400).send({message: 'No request with that ID under your user'});
                 }
-            }
-            catch(err) {
-                if(err.message === 'Request not found') {
+            } catch (err) {
+                if (err.message === 'Request not found') {
                     res.status(400).send({message: 'No request with that ID under your user'});
-                }
-                else{
+                } else {
                     console.error(err);
                     res.status(500).send({message: 'An error occurred deleting the request. Please try again.'})
                 }
@@ -224,9 +212,9 @@ router.post('/declineRequest', function(req, res) {
  * @param {Connection} connection The connection with the ongoing transaction
  * @returns {Promise<boolean>} If the transaction was successful, or false if the user didn't have enough to send
  */
-const handleCreateTransaction = async function(coinId, senderId, receiverId, amount, message, connection) {
+const handleCreateTransaction = async function (coinId, senderId, receiverId, amount, message, connection) {
     const senderEntry = await entry.getByCoinAndUser(coinId, senderId, ['id', 'user', 'coin', 'amount'], connection);
-    if(senderEntry.amount < amount) {
+    if (senderEntry.amount < amount) {
         return false;
     }
     const receiverEntry = await entry.getByCoinAndUser(coinId, receiverId, ['id', 'user', 'coin', 'amount'], connection);
@@ -237,4 +225,140 @@ const handleCreateTransaction = async function(coinId, senderId, receiverId, amo
 
     return true;
 };
+
+/**
+ * Handles searching for pending transaction requests that were sent to the user
+ */
+router.get('/search/requests/:previousId?', async function (req, res) {
+    try {
+        // Get the list of requests to display
+        let requestList = await request.getListBySender(req.session.user,
+            req.params.previousId ? req.params.previousId : Number.MAX_SAFE_INTEGER,
+            '<',
+            10,
+            'id',
+            'desc',
+            ['id', 'amount', 'message', 'uuid', 'timestamp'],
+            true,
+            ['email', 'name', 'uuid'],
+            ['name', 'symbol', 'uuid']);
+        if (requestList.length === 0) {
+            return res.status(200).send({
+                requests: [],
+                lastId: 0
+            })
+        }
+
+        // Map the individual columns/fields to a JSON object and get rid of unnecessary values
+        requestList = requestList.map(function (request) {
+            Object.keys(request).forEach(function (key) {
+                if (key.startsWith('sender_')) {
+                    delete request[key];
+                } else if (key.startsWith('requester_')) {
+                    if (!request.user)
+                        request.user = {};
+                    request.user[key.substring(10)] = request[key];
+                    delete request[key];
+                } else if (key.startsWith('coin_')) {
+                    if (!request.coin)
+                        request.coin = {};
+                    request.coin[key.substring(5)] = request[key];
+                    delete request[key];
+                }
+            });
+            delete request.id;
+            return request;
+        });
+
+        const message = {
+            requests: requestList,
+            lastId: requestList[requestList.length - 1].id
+        };
+        res.status(200).send(message);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({message: 'An error occurred while retrieving the requests. Please try again.'})
+    }
+});
+
+/**
+ * Handles searching for transactions that were sent to or from the user
+ */
+router.get('/search/:previousId?', async function (req, res) {
+    try {
+        // Get the list of transactions to display
+        let transactionsList = await transaction.getListByUsers(req.session.user,
+            req.params.previousId ? req.params.previousId : Number.MAX_SAFE_INTEGER,
+            '<',
+            10,
+            'id',
+            'desc',
+            ['id', 'amount', 'timestamp', 'message'],
+            true,
+            ['id', 'email', 'name', 'uuid'],
+            ['name', 'symbol', 'uuid']);
+        if (transactionsList.length === 0) {
+            return res.status(200).send({
+                transactions: [],
+                lastId: 0
+            })
+        }
+
+        // Map the individual columns/fields to a JSON object and get rid of unnecessary values
+        transactionsList = transactionsList.map(function (transaction) {
+            Object.keys(transaction).forEach(function (key) {
+                if (key.startsWith('sender_')) {
+                    if (!transaction.sender)
+                        transaction.sender = {};
+                    transaction.sender[key.substring(7)] = transaction[key];
+                    delete transaction[key];
+                } else if (key.startsWith('receiver_')) {
+                    if (!transaction.receiver)
+                        transaction.receiver = {};
+                    transaction.receiver[key.substring(9)] = transaction[key];
+                    delete transaction[key];
+                } else if (key.startsWith('coin_')) {
+                    if (!transaction.coin)
+                        transaction.coin = {};
+                    transaction.coin[key.substring(5)] = transaction[key];
+                    delete transaction[key];
+                }
+            });
+
+            // Pick the correct user (the one that isn't the session user) to send and map or delete the information
+            if(transaction.sender.id === req.session.user) {
+                delete transaction.sender;
+                transaction.user = transaction.receiver;
+                delete transaction.receiver;
+                delete transaction.user.id;
+                transaction.sent = true;
+            }
+            else{
+                delete transaction.receiver;
+                transaction.user = transaction.sender;
+                delete transaction.sender;
+                delete transaction.user.id;
+                transaction.sent = false;
+            }
+            return transaction;
+        });
+
+        const lastId = transactionsList[transactionsList.length - 1].id;
+        transactionsList = transactionsList.map(function(transaction) {
+            delete transaction.id;
+            return transaction;
+        });
+
+        const message = {
+            transactions: transactionsList,
+            lastId: lastId
+        };
+        res.status(200).send(message);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({message: 'An error occurred while retrieving the requests. Please try again.'})
+    }
+});
+
+
 module.exports = router;
