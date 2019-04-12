@@ -133,7 +133,7 @@ exports.SortType = SortType;
 /**
  * Get a connection from the pool as a promise
  *
- * @returns {Promise<Promise>} The promise that resolves to a connection or rejects with an error
+ * @returns {Promise<Connection>} The promise that resolves to a connection or rejects with an error
  */
 exports.getConnection = function() {
     return new Promise((resolve, reject) => {

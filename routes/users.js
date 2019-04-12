@@ -5,6 +5,8 @@ const mysql = require('../database/mysql');
 const user = require('../database/user');
 const entry = require('../database/entry');
 const coin = require('../database/coin');
+const fsPromises = require('fs').promises;
+const rimraf = require('rimraf');
 
 /**
  * Register new user with information sent in a POST request to /users.
@@ -28,45 +30,47 @@ router.post('/', function (req, res) {
             .max(45)
             .required()
     };
-    Joi.validate(req.body, registerSchema, function (err, value) {
+    Joi.validate(req.body, registerSchema, async function (err, value) {
         if (err) {
             res.status(400).send({message: err.message});
             throw err;
         }
-        mysql.getConnection(function(err, connection) {
-            if(err){
+        let connection;
+        let userUuid;
+        try{
+            connection = await mysql.getConnection();
+            await mysql.beginTransaction(connection);
+
+            const userId = await user.create(value.email, value.password, value.name, connection);
+            const {uuid} = await user.getById(userId, ['uuid'], connection);
+            userUuid = uuid;
+
+            await entry.create(userId, 1, 0, connection);
+
+            await fsPromises.mkdir(`../public/media/users/${userUuid}`, {recursive: true});
+            await fsPromises.copyFile('../public/media/users/default/thumbnail.jpg', `../public/media/users/${userUuid}/thumbnail.jpg`);
+            await fsPromises.copyFile('../public/media/users/default/full.jpg', `../public/media/users/${userUuid}/full.jpg`);
+
+            await mysql.commitTransaction(connection);
+
+            res.status(200).send({message: 'User created successfully'});
+        }
+        catch(err) {
+            console.error(err);
+            if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.match(/(?<=key ').+(?=')/)[0] === 'email_UNIQUE') {
+                res.status(400).send({message: 'A user with that email already exists.'})
+            } else {
                 res.status(500).send({message: 'An error occurred while registering. Please try again.'});
-                throw err;
             }
-            connection.beginTransaction(function(err) {
-                if(err) {
-                    return connection.rollback(function() {
-                        res.status(500).send({message: 'An error occurred while registering. Please try again.'});
-                        throw error;
-                    });
-                }
-                user.create(value.email, value.password, value.name, connection)
-                    .then(function(userId) {
-                        return entry.create(userId, 1, 0, connection);
-                    })
-                    .then(function() {
-                        return mysql.commitTransaction(connection);
-                    })
-                    .then(function() {
-                        res.status(200).send({message: 'User created successfully'});
-                    })
-                    .catch(function (err) {
-                        if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.match(/(?<=key ').+(?=')/)[0] === 'email_UNIQUE') {
-                            res.status(400).send({message: 'A user with that email already exists.'})
-                        } else {
-                            res.status(500).send({message: 'An error occurred while creating your user. Please try again.'});
-                        }
-                        return connection.rollback(function () {
-                            throw err;
-                        })
-                    });
-            })
-        });
+
+            if(connection) {
+                return connection.rollback(function() {
+                    if(userUuid) {
+                        rimraf(`../public/media/users/${userUuid}`, function() {});
+                    }
+                });
+            }
+        }
     });
 });
 
