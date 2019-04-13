@@ -7,6 +7,7 @@ const entry = require('../database/entry');
 const coin = require('../database/coin');
 const fsPromises = require('fs').promises;
 const rimraf = require('rimraf');
+const path = require('path');
 
 /**
  * Register new user with information sent in a POST request to /users.
@@ -47,9 +48,9 @@ router.post('/', function (req, res) {
 
             await entry.create(userId, 1, 0, connection);
 
-            await fsPromises.mkdir(`../public/media/users/${userUuid}`, {recursive: true});
-            await fsPromises.copyFile('../public/media/users/default/thumbnail.jpg', `../public/media/users/${userUuid}/thumbnail.jpg`);
-            await fsPromises.copyFile('../public/media/users/default/full.jpg', `../public/media/users/${userUuid}/full.jpg`);
+            await fsPromises.mkdir(`public/media/users/${userUuid}`, {recursive: true});
+            await fsPromises.copyFile('public/media/users/default/thumbnail.jpg', `public/media/users/${userUuid}/thumbnail.jpg`);
+            await fsPromises.copyFile('public/media/users/default/full.jpg',`public/media/users/${userUuid}/full.jpg`);
 
             await mysql.commitTransaction(connection);
 
