@@ -69,6 +69,17 @@ const createItemTableQuery = 'CREATE TABLE IF NOT EXISTS `item` (\n' +
     '  KEY `item_coin_idx` (`coin`),\n' +
     '  CONSTRAINT `item_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`) ON DELETE CASCADE\n' +
     ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
+const createUserItemTableQuery = 'CREATE TABLE IF NOT EXISTS `user_item` (\n' +
+    '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
+    '  `item` int(10) unsigned NOT NULL,\n' +
+    '  `user` int(10) unsigned NOT NULL,\n' +
+    '  PRIMARY KEY (`id`),\n' +
+    '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
+    '  KEY `user_item_item_idx` (`item`),\n' +
+    '  KEY `user_item_user_idx` (`user`),\n' +
+    '  CONSTRAINT `user_item_item` FOREIGN KEY (`item`) REFERENCES `item` (`id`) ON DELETE CASCADE,\n' +
+    '  CONSTRAINT `user_item_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE\n' +
+    ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 const createRoleCodeTableQuery = 'CREATE TABLE IF NOT EXISTS `role_code` (\n' +
     '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
     '  `type` varchar(45) NOT NULL,\n' +
@@ -215,6 +226,7 @@ exports.setup = function () {
         {query: createEntryTableQuery, message: 'Creating entry table...'},
         {query: createTransactionTableQuery, message: 'Creating entry table...'},
         {query: createItemTableQuery, message: 'Creating item table...'},
+        {query: createUserItemTableQuery, message: 'Creating user item table...'},
         {query: createRoleCodeTableQuery, message: 'Creating role code table...'},
         {query: createRoleTableQuery, message: 'Creating role table...'},
         {query: createRequestTableQuery, message: 'Creating request table...'}

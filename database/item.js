@@ -46,7 +46,7 @@ exports.getByUuid = function (uuid, columns = ['id', 'coin', 'name', 'cost', 'uu
     return new Promise(function (resolve, reject) {
         const query = knex('item')
             .select(columns)
-            .whereRaw('`uuid` = UUID_TO_BIN(?)', [uuid])
+            .whereRaw('`uuid` = UUID_TO_BIN(?)', [uuid]);
         connection.query(query.toQuery(), [uuid], function (err, rows, fields) {
             if (err) return reject(err);
             if (rows[0] === undefined) return reject(new Error('Item not found'));
