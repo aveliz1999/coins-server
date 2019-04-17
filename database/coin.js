@@ -109,7 +109,7 @@ exports.create = function (name, symbol, connection = mysql.pool) {
                 symbol: symbol,
                 uuid: knex.raw('UUID_TO_BIN(UUID())')
             });
-        connection.query(query, [name, symbol], function (err, result, fields) {
+        connection.query(query.toQuery(), function (err, result, fields) {
             if (err) return reject(err);
             resolve(result.insertId);
         });
