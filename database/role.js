@@ -2,7 +2,7 @@ const mysql = require('./mysql');
 const knex = require('knex')({client: 'mysql'});
 
 exports.roleCodes = {
-    1: 'OWNER'
+    OWNER: 1
 };
 
 /**

@@ -5,6 +5,7 @@ const mysql = require('../database/mysql');
 const user = require('../database/user');
 const entry = require('../database/entry');
 const coin = require('../database/coin');
+const role = require('../database/role');
 const fsPromises = require('fs').promises;
 const rimraf = require('rimraf');
 const path = require('path');
@@ -47,6 +48,11 @@ router.post('/', function (req, res) {
             userUuid = uuid;
 
             await entry.create(userId, 1, 0, connection);
+
+            // The first user is registered, assumed to be the administrator and given owner role for default coin
+            if(userId === 1) {
+                await role.create(1, 1, role.roleCodes.OWNER, connection);
+            }
 
             await fsPromises.mkdir(`public/media/users/${userUuid}`, {recursive: true});
             await fsPromises.copyFile('public/media/users/default/thumbnail.jpg', `public/media/users/${userUuid}/thumbnail.jpg`);
