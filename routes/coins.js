@@ -1,20 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const coin = require('../database/coin');
-const entry = require('../database/entry');
+const authenticatedMiddleware = require('../middleware/authenticated');
+const mysql = require('../database/mysql');
+const knex = require('knex')({client: 'mysql'});
 
-/**
- * Middleware to disallow access to any transaction requests unless the user is logged in.
- * Returns a 403 Unauthorized if the user is not logged in.
- */
-router.use(function(req, res, next) {
-    if(req.session.user) {
-        next();
-    }
-    else {
-        res.status(403).send({message: 'Unauthorized'});
-    }
-});
+router.use(authenticatedMiddleware);
 
 /**
  * Get the coin and entry data for the authenticated user.
@@ -22,21 +12,23 @@ router.use(function(req, res, next) {
  * entry.
  */
 router.get('/', async function(req, res) {
+    let connection;
     try{
-        const entries = await entry.getListByUser(req.session.user);
-        const promises = entries.map(function(entry) {
-            return coin.getById(entry.coin);
-        });
-        const coins = await Promise.all(promises);
-        for(let coin = 0; coin < coins.length; coin++) {
-            coins[coin].amount = entries[coin].amount;
-            delete coins[coin].id;
-        }
-        res.status(200).send(coins);
+        connection = await mysql.getConnection();
+        const entries = await knex('entry')
+            .connection(connection)
+            .select('amount', 'coin.name', 'coin.symbol', knex.raw('bin_to_uuid(`coin`.`uuid`) as `uuid`'))
+            .where('user', req.session.user)
+            .join('coin', 'entry.coin', 'coin.id');
+        connection.release();
+        res.status(200).send(entries);
     }
     catch(err) {
-        console.log(err);
+        console.error(err);
         res.status(500).send({message: 'An error occurred retrieving your coins. Please try again.'});
+        if(connection) {
+            connection.release();
+        }
     }
 });
 
