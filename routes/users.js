@@ -2,13 +2,11 @@ const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
 const mysql = require('../database/mysql');
+const knex = require('knex');
 const user = require('../database/user');
-const entry = require('../database/entry');
-const coin = require('../database/coin');
-const role = require('../database/role');
 const fsPromises = require('fs').promises;
 const rimraf = require('rimraf');
-const path = require('path');
+const encryptionUtil = require('../util/encryption');
 
 /**
  * Register new user with information sent in a POST request to /users.
@@ -32,7 +30,7 @@ router.post('/', function (req, res) {
             .max(45)
             .required()
     };
-    Joi.validate(req.body, registerSchema, async function (err, value) {
+    Joi.validate(req.body, registerSchema, async function (err, userInfo) {
         if (err) {
             res.status(400).send({message: err.message});
             throw err;
@@ -43,15 +41,39 @@ router.post('/', function (req, res) {
             connection = await mysql.getConnection();
             await mysql.beginTransaction(connection);
 
-            const userId = await user.create(value.email, value.password, value.name, connection);
-            const {uuid} = await user.getById(userId, ['uuid'], connection);
-            userUuid = uuid;
+            // Create the user and get their generated unique ID
+            const userId = await knex('user')
+                .connection(connection)
+                .insert({
+                    email: userInfo.email,
+                    password: await encryptionUtil.bcryptHash(userInfo.password),
+                    name: userInfo.name,
+                    uuid: knex.raw('UUID_TO_BIN(UUID())')
+                });
+            userUuid = {uuid} = await knex('user')
+                .connection(connection)
+                .select(knex.raw('bin_to_uuid(uuid) as `uuid`'))
+                .where('id', userId)
+                .first();
 
-            await entry.create(userId, 1, 0, connection);
+            // Create a coin entry for the user for the default coin
+            await knex('entry')
+                .connection(connection)
+                .insert({
+                    user: userId,
+                    coin: 1,
+                    amount: 0
+                });
 
             // The first user is registered, assumed to be the administrator and given owner role for default coin
             if(userId === 1) {
-                await role.create(1, 1, role.roleCodes.OWNER, connection);
+                await knex('role')
+                    .connection(connection)
+                    .insert({
+                        coin: 1,
+                        user: 1,
+                        role_code: 1
+                    });
             }
 
             await fsPromises.mkdir(`public/media/users/${userUuid}`, {recursive: true});
