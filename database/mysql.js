@@ -122,6 +122,7 @@ const createRequestTableQuery = 'CREATE TABLE IF NOT EXISTS `request` (\n' +
     ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 
 const defaultCurrencyCreateQuery = 'INSERT INTO `coin` (id, name, symbol, uuid) VALUES (1, ?, ?, UUID_TO_BIN(UUID())) ON DUPLICATE KEY UPDATE id=1, name=?, symbol=?';
+const ownerRoleCodeQuery = 'INSERT INTO `role_code`(id, `type`) VALUES(1, "OWNER") ON DUPLICATE KEY UPDATE `type`="OWNER"';
 
 /**
  * The connection pool used for queries
@@ -213,11 +214,11 @@ exports.rollbackTransaction = function(connection) {
  */
 exports.setup = function () {
     const connection = mysql.createConnection({
-        connectionLimit: 10,
-        host: 'localhost',
-        user: 'root',
+        connectionLimit: process.env.DATABASE_POOL_LIMIT | 10,
+        host: process.env.DATABASE_HOST | 'localhost',
+        user: process.env.DATABASE_USER,
         password: process.env.DATABASE_PASSWORD,
-        database: 'coins_test',
+        database: process.env.DATABASE_NAME,
         multipleStatements: true
     });
     const queries = [
@@ -229,7 +230,8 @@ exports.setup = function () {
         {query: createUserItemTableQuery, message: 'Creating user item table...'},
         {query: createRoleCodeTableQuery, message: 'Creating role code table...'},
         {query: createRoleTableQuery, message: 'Creating role table...'},
-        {query: createRequestTableQuery, message: 'Creating request table...'}
+        {query: createRequestTableQuery, message: 'Creating request table...'},
+        {query: ownerRoleCodeQuery, message: 'Creating default role role...'}
     ];
     const promises = queries.map(function (query) {
         return new Promise(function (resolve, reject) {
