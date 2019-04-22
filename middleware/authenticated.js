@@ -4,6 +4,7 @@
  */
 module.exports = function(req, res, next) {
     if(req.session.user) {
+        res.cookie('authenticated', req.sessionID, {maxAge: 3600000, httpOnly: false});
         next();
     }
     else {
