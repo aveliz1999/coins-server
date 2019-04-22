@@ -1,13 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Joi = require('joi');
 const authenticatedMiddleware = require('../middleware/authenticated');
-const mysql = require('../database/mysql');
-const knex = require('knex');
-const user = require('../database/user');
-const fsPromises = require('fs').promises;
-const rimraf = require('rimraf');
-const encryptionUtil = require('../util/encryption');
 
 const controller = require('../controllers/users');
 
