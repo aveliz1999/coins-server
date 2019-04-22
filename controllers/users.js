@@ -32,7 +32,7 @@ exports.create = function (req, res) {
     };
     Joi.validate(req.body, registerSchema, async function (err, userInfo) {
         if (err) {
-            res.status(400).send({message: err.message});
+            return res.status(400).send({message: err.message});
         }
         let connection;
         let userUuid;
