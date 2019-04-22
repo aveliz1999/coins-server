@@ -1,3 +1,10 @@
+const Joi = require('joi');
+const mysql = require('../database/mysql');
+const knex = require('knex')({client: "mysql"});
+const fsPromises = require('fs').promises;
+const encryptionUtil = require('../util/encryption');
+const rimraf = require('rimraf');
+
 /**
  * Register new user with information sent in a POST request to /users.
  *
@@ -26,7 +33,6 @@ exports.create = function (req, res) {
     Joi.validate(req.body, registerSchema, async function (err, userInfo) {
         if (err) {
             res.status(400).send({message: err.message});
-            throw err;
         }
         let connection;
         let userUuid;
@@ -59,12 +65,16 @@ exports.create = function (req, res) {
                 });
 
             // The first user is registered, assumed to be the administrator and given owner role for default coin
-            if(userId === 1) {
+            const {count: userNumber} = await knex('user')
+                .connection(connection)
+                .count('id as count')
+                .first();
+            if(userNumber === 1) {
                 await knex('role')
                     .connection(connection)
                     .insert({
                         coin: 1,
-                        user: 1,
+                        user: userId,
                         role_code: 1
                     });
             }
@@ -78,10 +88,10 @@ exports.create = function (req, res) {
             res.status(200).send({message: 'User created successfully'});
         }
         catch(err) {
-            console.error(err);
             if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.match(/(?<=key ').+(?=')/)[0] === 'email_UNIQUE') {
                 res.status(400).send({message: 'A user with that email already exists.'})
             } else {
+                console.error(err);
                 res.status(500).send({message: 'An error occurred while registering. Please try again.'});
             }
 
