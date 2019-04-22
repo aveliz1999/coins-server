@@ -1,3 +1,6 @@
+const mysql = require('../database/mysql');
+const knex = require('knex')({client: "mysql"});
+
 /**
  * Get the coin and entry data for the authenticated (in the session) user.
  * Returns an array with all the coins they owns (name, symbol, and UUId), as well as the amount in their corresponding

@@ -86,6 +86,8 @@ exports.create = function (req, res) {
             await mysql.commitTransaction(connection);
 
             res.status(200).send({message: 'User created successfully'});
+
+            connection.release();
         }
         catch(err) {
             if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.match(/(?<=key ').+(?=')/)[0] === 'email_UNIQUE') {
@@ -97,6 +99,7 @@ exports.create = function (req, res) {
 
             if(connection) {
                 return connection.rollback(function() {
+                    connection.release();
                     if(userUuid) {
                         rimraf(`../public/media/users/${userUuid}`, function() {});
                     }
