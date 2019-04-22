@@ -170,3 +170,30 @@ exports.login = function (req, res) {
         }
     });
 };
+
+/**
+ * Get the email, name, and unique ID of the user with a signed in session
+ *
+ * @param req Request object
+ * @param res Response object
+ */
+exports.getFromSession = async function (req, res) {
+    try {
+        const {email, name, uuid} = await knex('user')
+            .select('email', 'name', knex.raw('bin_to_uuid(uuid) as uuid'))
+            .where('id', req.session.user)
+            .first();
+        if(uuid) {
+            res.status(200).send({email, name, uuid});
+        }
+        else{
+            // Delete the session's user information if the query returns no information for it
+            delete req.session.user;
+            res.status(400).send({message: 'Unknown user'});
+        }
+    }
+    catch(err) {
+        console.error(err);
+        res.status(500).send({message: 'An error occurred while retrieving the user information. Please try again.'})
+    }
+};
