@@ -11,51 +11,7 @@ const encryptionUtil = require('../util/encryption');
 const controller = require('../controllers/users');
 
 router.post('/', controller.create);
-
-/**
- * Attempt to log in a user with the information sent in a POST request to /users/login.
- * If the email and password match the information in the database, the user's UUID is sent in the response and the
- * user's ID is set in their session information.
- *
- * Requires an email of max 50 characters and a password between 8 and 32 characters (that follows a specific regex).
- */
-router.post('/login', function (req, res) {
-    const loginSchema = {
-        email: Joi.string()
-            .email()
-            .max(50)
-            .required(),
-        password: Joi.string()
-            .min(8)
-            .max(32)
-            .regex(/^[ \!"#\$%&'\(\)\*\+,\-\.\/\:;\<\=\>\?@\[\\\]\^_`\{\|\}~a-zA-Z0-9]+$/)
-            .required()
-    };
-    Joi.validate(req.body, loginSchema, function (err, value) {
-        if (err) {
-            res.status(400).send({message: err.message});
-        } else {
-            user.comparePassword(value.email, value.password)
-                .then(function (result) {
-                    if (result) {
-                        req.session.user = result.id;
-                        res.cookie('authenticated', req.sessionID, {maxAge: 3600000, httpOnly: false});
-                        res.status(200).send({userId: result.uuid});
-                    } else {
-                        res.status(400).send({message: 'Incorrect username or password.'})
-                    }
-                })
-                .catch(function (err) {
-                    if (err.message === 'User not found') {
-                        res.status(400).send({message: 'Incorrect username or password.'})
-                    } else {
-                        console.error(err);
-                        res.status(500).send({message: 'An error occurred while logging in. Please try again.'})
-                    }
-                });
-        }
-    });
-});
+router.post('/login', controller.login);
 
 /**
  * Middleware to only allow requests that are authenticated or reply with a 403 message.

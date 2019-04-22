@@ -107,4 +107,66 @@ exports.create = function (req, res) {
             }
         }
     });
-}
+};
+
+/**
+ * Attempt to log in a user with the information sent in a POST request to /users/login.
+ * If the email and password match the information in the database, the user's UUID is sent in the response and the
+ * user's ID is set in their session information.
+ *
+ * Requires an email of max 50 characters and a password between 8 and 32 characters (that follows a specific regex).
+ *
+ * @param req Request object
+ * @param res Response object
+ */
+exports.login = function (req, res) {
+    const loginSchema = {
+        email: Joi.string()
+            .email()
+            .max(50)
+            .required(),
+        password: Joi.string()
+            .min(8)
+            .max(32)
+            .regex(/^[ \!"#\$%&'\(\)\*\+,\-\.\/\:;\<\=\>\?@\[\\\]\^_`\{\|\}~a-zA-Z0-9]+$/)
+            .required()
+    };
+    Joi.validate(req.body, loginSchema, async function (err, userInfo) {
+        if (err) {
+            res.status(400).send({message: err.message});
+        }
+        else {
+            let connection;
+            try {
+                connection = await mysql.getConnection();
+                const {id: userId, password: storedPassword, uuid} = await knex('user')
+                    .connection(connection)
+                    .select('id', 'password', knex.raw('bin_to_uuid(uuid) as uuid'))
+                    .where('email', userInfo.email)
+                    .first();
+                if (!storedPassword) {
+                    return res.status(400).send({message: 'Incorrect username or password.'})
+                }
+
+                // Password comparison fails
+                if (!encryptionUtil.bcryptCompare(userInfo.password, storedPassword)) {
+                    return res.status(400).send({message: 'Incorrect username or password.'})
+                }
+
+                req.session.user = userId;
+                res.cookie('authenticated', req.sessionID, {maxAge: 3600000, httpOnly: false});
+                res.status(200).send({userId: uuid});
+
+                connection.release();
+            }
+            catch(err) {
+                console.error(err);
+                res.status(500).send({message: 'An error occurred while logging in. Please try again.'})
+
+                if(connection) {
+                    connection.release();
+                }
+            }
+        }
+    });
+};
