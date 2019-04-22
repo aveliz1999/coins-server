@@ -198,6 +198,15 @@ exports.getFromSession = async function (req, res) {
     }
 };
 
+/**
+ * Search for users with names that begin with the given name.
+ * Returns a list of user objects without the internal ID and the user passwords.
+ *
+ * The name parameter must be present, and it must be under 50 characters.
+ *
+ * @param req Request object
+ * @param res Response object
+ */
 exports.search = function(req, res) {
     const searchSchema = {
         name: Joi.string()
