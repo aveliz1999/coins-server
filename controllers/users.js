@@ -197,3 +197,32 @@ exports.getFromSession = async function (req, res) {
         res.status(500).send({message: 'An error occurred while retrieving the user information. Please try again.'})
     }
 };
+
+exports.search = function(req, res) {
+    const searchSchema = {
+        name: Joi.string()
+            .max(50)
+            .required()
+    };
+    Joi.validate(req.params, searchSchema, async function (err, userInfo) {
+        if (err) {
+            return res.status(400).send({message: err.message});
+        }
+        let connection;
+        try{
+            connection = await mysql.getConnection();
+
+            const users = await knex('user')
+                .connection(connection)
+                .select('email', 'name', knex.raw('bin_to_uuid(uuid) as uuid'))
+                .where('name', 'like', userInfo.name + '%')
+                .limit(10);
+
+            res.status(200).send(users);
+        }
+        catch(err) {
+            console.error(err);
+            res.status(500).send({message: 'An error occurred while searching. Please try again.'})
+        }
+    });
+};
