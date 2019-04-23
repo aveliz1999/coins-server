@@ -178,8 +178,12 @@ exports.login = function (req, res) {
  * @param res Response object
  */
 exports.getFromSession = async function (req, res) {
+    let connection;
     try {
+        connection = await mysql.getConnection();
+
         const {email, name, uuid} = await knex('user')
+            .connection(connection)
             .select('email', 'name', knex.raw('bin_to_uuid(uuid) as uuid'))
             .where('id', req.session.user)
             .first();
@@ -191,10 +195,16 @@ exports.getFromSession = async function (req, res) {
             delete req.session.user;
             res.status(400).send({message: 'Unknown user'});
         }
+
+        connection.release();
     }
     catch(err) {
         console.error(err);
         res.status(500).send({message: 'An error occurred while retrieving the user information. Please try again.'})
+
+        if(connection){
+            connection.release();
+        }
     }
 };
 
@@ -228,10 +238,16 @@ exports.search = function(req, res) {
                 .limit(10);
 
             res.status(200).send(users);
+
+            connection.release();
         }
         catch(err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred while searching. Please try again.'})
+
+            if(connection){
+                connection.release();
+            }
         }
     });
 };

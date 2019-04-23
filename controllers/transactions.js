@@ -124,6 +124,85 @@ exports.create = function(req, res) {
 };
 
 /**
+ * Accept a request that was sent and create the transaction for the exchange.
+ * The user must have enough coins to send and the request ID must be a valid pending request for that user.
+ *
+ * @param req Request object
+ * @param res Response object
+ */
+exports.acceptRequest = function(req, res) {
+    const transactionSchema = {
+        requestId: Joi.string()
+            .uuid({
+                version: [
+                    'uuidv1'
+                ]
+            })
+            .required()
+    };
+    Joi.validate(req.body, transactionSchema, async function (err, requestInfo) {
+        if (err) {
+            return res.status(400).send({message: err.message});
+        }
+
+        let connection;
+        try {
+            connection = await mysql.getConnection();
+
+            // Get the request information
+            const requestResult = await knex('request')
+                .connection(connection)
+                .select('id', 'coin', 'sender', 'requester', 'amount', 'message')
+                .where('uuid', knex.raw('uuid_to_bin(?)', [requestInfo.requestId]))
+                .first();
+
+            // Check if it's a valid request that belongs to the user
+            if (requestResult && requestResult.sender === req.session.user) {
+                await mysql.beginTransaction(connection);
+
+                // Attempt to create the transaction and update the sender and receiver entry amounts
+                const created = await handleCreateTransaction(requestResult.coin, requestResult.sender, requestResult.requester, requestResult.amount, requestResult.message, connection);
+
+                // The transaction was not created due to the sender not having enough for this transaction
+                if (!created) {
+                    await mysql.rollbackTransaction(connection);
+                    connection.release();
+                    return res.status(400).send({message: 'Not enough of this coin to complete this transaction'});
+                }
+
+                // Delete the request once the transaction is made
+                await knex('request')
+                    .connection(connection)
+                    .where('id', requestResult.id)
+                    .del();
+
+                await mysql.commitTransaction(connection);
+                connection.release();
+
+                res.status(200).send({message: 'Successfully created the transaction'});
+            }
+            else {
+                res.status(400).send({message: 'No request with that ID under your user'});
+            }
+        }
+        catch (err) {
+            res.status(500).send({message: 'An error occurred creating the transaction. Please try again.'});
+            console.error(err);
+
+            if (connection) {
+                try {
+                    await mysql.rollbackTransaction(connection);
+                    connection.release();
+                } catch (err) {
+                    console.log(err);
+                }
+            }
+
+        }
+    });
+};
+
+/**
  * Handles creating the transaction entry and modifying the user coin entries as a part of a transaction
  *
  * @param {Number} coinId The id of the coin being exchanged

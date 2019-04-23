@@ -13,69 +13,7 @@ const controller = require('../controllers/transactions');
 router.use(authenticatedMiddleware);
 
 router.post('/', controller.create);
-
-
-
-
-/**
- * Accept a request that was sent and create the transaction for the exchange.
- * The user must have enough coins to send and the request ID must be a valid pending request for that user.
- */
-router.post('/acceptRequest', function (req, res) {
-    const transactionSchema = {
-        requestId: Joi.string()
-            .uuid({
-                version: [
-                    'uuidv1'
-                ]
-            })
-            .required()
-    };
-    Joi.validate(req.body, transactionSchema, async function (err, values) {
-        if (err) {
-            res.status(400).send({message: err.message});
-        } else {
-            let connection;
-            try {
-                const requestResult = await request.getByUuid(values.requestId);
-                console.log(requestResult);
-                if (requestResult && requestResult.sender === req.session.user) {
-                    connection = await mysql.getConnection();
-                    await mysql.beginTransaction(connection);
-
-                    const created = await handleCreateTransaction(requestResult.coin, requestResult.sender, requestResult.requester, requestResult.amount, requestResult.message, connection);
-                    if (!created) {
-                        await mysql.rollbackTransaction(connection);
-                        connection.release();
-                        return res.status(400).send({message: 'Not enough of this coin to complete this transaction'});
-                    }
-                    await request.delete(requestResult.id);
-                    await mysql.commitTransaction(connection);
-                    connection.release();
-
-                    res.status(200).send({message: 'Successfully created the transaction'});
-                } else {
-                    res.status(400).send({message: 'No request with that ID under your user'});
-                }
-            } catch (err) {
-                if (connection) {
-                    try {
-                        await mysql.rollbackTransaction(connection);
-                        connection.release();
-                    } catch (err) {
-                        console.log(err);
-                    }
-                }
-                if (err.message === 'Request not found') {
-                    res.status(400).send({message: 'No request with that ID under your user'});
-                } else {
-                    res.status(500).send({message: 'An error occurred creating the transaction. Please try again.'});
-                    console.log(err);
-                }
-            }
-        }
-    });
-});
+router.post('/acceptRequest', controller.acceptRequest);
 
 /**
  * Decline a request that was sent and delete it from the database
