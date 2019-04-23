@@ -1,108 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
+const authenticatedMiddleware = require('../middleware/authenticated');
 
 const mysql = require('../database/mysql');
 const request = require('../database/request');
-const user = require('../database/user');
-const coin = require('../database/coin');
 const entry = require('../database/entry');
 const transaction = require('../database/transaction');
 
-/**
- * Middleware to disallow access to any transaction requests unless the user is logged in.
- * Returns a 403 Unauthorized if the user is not logged in.
- */
-router.use(function (req, res, next) {
-    if (req.session.user) {
-        next();
-    } else {
-        res.status(403).send({message: 'Unauthorized'});
-    }
-});
+const controller = require('../controllers/transactions');
 
-/**
- * Create a new transaction.
- * All the details of the the transaction must be sent in the body, except for the ID of the user initiating it which
- * is loaded as part of the session under the variable 'user'
- */
-router.post('/', function (req, res) {
-    const transactionSchema = {
-        target: Joi.string()
-            .uuid({
-                version: [
-                    'uuidv1'
-                ]
-            })
-            .required(),
-        coin: Joi.string()
-            .uuid({
-                version: [
-                    'uuidv1'
-                ]
-            })
-            .required(),
-        amount: Joi.number()
-            .integer()
-            .greater(0)
-            .required(),
-        message: Joi.string()
-            .max(64)
-            .allow(''),
-        charging: Joi.boolean()
-            .required()
-    };
-    Joi.validate(req.body, transactionSchema, async function (err, values) {
-        if (err) {
-            res.status(400).send({message: err.message});
-        } else {
-            const userId = req.session.user;
-            const amount = values.amount;
-            let connection;
-            try {
-                let {id: coinId} = await coin.getByUuid(values.coin);
-                let {id: targetId} = await user.getByUuid(values.target);
+router.use(authenticatedMiddleware);
 
-                if (values.charging) {
-                    await request.create(userId, targetId, coinId, amount, values.message);
-                    res.status(200).send({message: 'Sent request successfully.'});
-                    return;
-                }
+router.post('/', controller.create);
 
-                connection = await mysql.getConnection();
-                await mysql.beginTransaction(connection);
 
-                const created = await handleCreateTransaction(coinId, userId, targetId, amount, values.message, connection);
-                if (!created) {
-                    await mysql.rollbackTransaction(connection);
-                    connection.release();
-                    return res.status(400).send({message: 'Not enough of this coin to complete this transaction'});
-                }
-                await mysql.commitTransaction(connection);
-                connection.release();
 
-                res.status(200).send({message: 'Successfully created the transaction'});
-            } catch (err) {
-                if (connection) {
-                    try {
-                        await mysql.rollbackTransaction(connection);
-                        connection.release();
-                    } catch (err) {
-                        console.log(err);
-                    }
-                }
-                if (err.message === 'User not found') {
-                    res.status(400).send({message: 'Please enter a valid user'});
-                } else if (err.message === 'Coin not found') {
-                    res.status(400).send({message: 'Please enter a valid coin'});
-                } else {
-                    res.status(500).send({message: 'An error occurred creating the transaction. Please try again.'});
-                    console.log(err);
-                }
-            }
-        }
-    });
-});
 
 /**
  * Accept a request that was sent and create the transaction for the exchange.
