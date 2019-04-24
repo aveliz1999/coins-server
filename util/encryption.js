@@ -34,12 +34,7 @@ exports.bcryptCompare = function(input, toCompare) {
     return new Promise((resolve, reject) => {
         bcrypt.compare(input, toCompare, function (err, result) {
             if (err) return reject(err);
-            if (result) {
-                return resolve(true);
-            }
-            else {
-                return resolve(false);
-            }
+            return resolve(result);
         })
     })
 };

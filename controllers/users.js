@@ -139,17 +139,18 @@ exports.login = function (req, res) {
             let connection;
             try {
                 connection = await mysql.getConnection();
-                const {id: userId, password: storedPassword, uuid} = await knex('user')
+                const user = await knex('user')
                     .connection(connection)
                     .select('id', 'password', knex.raw('bin_to_uuid(uuid) as uuid'))
                     .where('email', userInfo.email)
                     .first();
-                if (!storedPassword) {
+                if (!user) {
                     return res.status(400).send({message: 'Incorrect username or password.'})
                 }
+                const {id: userId, password: storedPassword, uuid} = user;
 
                 // Password comparison fails
-                if (!encryptionUtil.bcryptCompare(userInfo.password, storedPassword)) {
+                if (!await encryptionUtil.bcryptCompare(userInfo.password, storedPassword)) {
                     return res.status(400).send({message: 'Incorrect username or password.'})
                 }
 
