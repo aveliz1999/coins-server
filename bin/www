@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const config = require('../config/' + process.env.NODE_ENV + '.json');
 const app = require('../app');
 const http = require('http');
 const cluster = require('cluster');
@@ -10,8 +11,8 @@ if(cluster.isMaster){
   // Set up the required MySQL tables in the master process so that it doesn't get executed multiple times
   mysql.setup();
 
-  // If no amount is specified in the environment variables, default to number of cores
-  const processes = process.env.PROCESSES || require('os').cpus().length;
+  // Amount of child processes to spawn
+  const processes = config.deployment.processes;
 
   for(let i = 0; i < processes; i++){
     cluster.fork();
@@ -30,7 +31,7 @@ if(cluster.isMaster){
 }
 else{
   // If no port is specified in the environment variables, default to 3000
-  const port = normalizePort(process.env.PORT || '3000');
+  const port = normalizePort(config.deployment.port);
   app.set('port', port);
 
   const server = http.createServer(app);

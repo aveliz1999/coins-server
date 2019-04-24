@@ -5,6 +5,7 @@ const logger = require('morgan');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 const mysql = require('./database/mysql');
+const config = require('./config/' + process.env.NODE_ENV + '.json');
 
 const app = express();
 
@@ -16,7 +17,7 @@ const appSession = {
   },
   name: 'sessId',
   saveUninitialized: true,
-  secret: process.env.SESSION_SECRETS,
+  secret: config.sessionSecrets,
   resave: true,
   rolling: true,
   store: new MySQLStore({}, mysql.pool)
@@ -28,7 +29,9 @@ if(app.get('env') !== 'development'){
 }
 app.use(session(appSession));
 
-app.use(logger('combined'));
+if(app.get('env') !== 'development') {
+  app.use(logger('combined'));
+}
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

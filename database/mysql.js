@@ -1,11 +1,12 @@
 const mysql = require('mysql');
+const config = require('../config/' + process.env.NODE_ENV + '.json');
 
 const pool = mysql.createPool({
-    connectionLimit: process.env.DATABASE_POOL_LIMIT | 10,
-    host: process.env.DATABASE_HOST | 'localhost',
-    user: process.env.DATABASE_USER,
-    password: process.env.DATABASE_PASSWORD,
-    database: process.env.DATABASE_NAME
+    connectionLimit: config.databaseInformation.connectionLimit,
+    host: config.databaseInformation.host,
+    user: config.databaseInformation.username,
+    password: config.databaseInformation.password,
+    database: config.databaseInformation.name
 });
 
 const createUserTableQuery = 'CREATE TABLE IF NOT EXISTS `user` (\n' +
@@ -91,13 +92,13 @@ const createRoleTableQuery = 'CREATE TABLE IF NOT EXISTS `role` (\n' +
     '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
     '  `coin` int(10) unsigned NOT NULL,\n' +
     '  `user` int(10) unsigned NOT NULL,\n' +
-    '  `role_code` int(10) unsigned,\n' +
+    '  `role_code` int(10) unsigned NOT NULL,\n' +
     '  PRIMARY KEY (`id`),\n' +
     '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
     '  KEY `role_coin_idx` (`coin`),\n' +
     '  KEY `role_user_idx` (`user`),\n' +
     '  KEY `role_code_idx` (`role_code`),\n' +
-    '  CONSTRAINT `role_code` FOREIGN KEY (`role_code`) REFERENCES `role_code` (`id`) ON DELETE SET NULL,\n' +
+    '  CONSTRAINT `role_code` FOREIGN KEY (`role_code`) REFERENCES `role_code` (`id`) ON DELETE CASCADE,\n' +
     '  CONSTRAINT `role_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`) ON DELETE CASCADE,\n' +
     '  CONSTRAINT `role_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE\n' +
     ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
@@ -121,7 +122,7 @@ const createRequestTableQuery = 'CREATE TABLE IF NOT EXISTS `request` (\n' +
     '  CONSTRAINT `request_sender` FOREIGN KEY (`sender`) REFERENCES `user` (`id`) ON DELETE CASCADE\n' +
     ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 
-const defaultCurrencyCreateQuery = 'INSERT INTO `coin` (id, name, symbol, uuid) VALUES (1, ?, ?, UUID_TO_BIN(UUID())) ON DUPLICATE KEY UPDATE id=1, name=?, symbol=?';
+const defaultCurrencyCreateQuery = 'INSERT INTO `coin` (id, name, symbol, uuid) VALUES (1, ?, ?, UUID_TO_BIN(UUID())) ON DUPLICATE KEY UPDATE name=?, symbol=?';
 const ownerRoleCodeQuery = 'INSERT INTO `role_code`(id, `type`) VALUES(1, "OWNER") ON DUPLICATE KEY UPDATE `type`="OWNER"';
 
 /**
@@ -214,29 +215,27 @@ exports.rollbackTransaction = function(connection) {
  */
 exports.setup = function () {
     const connection = mysql.createConnection({
-        connectionLimit: process.env.DATABASE_POOL_LIMIT | 10,
-        host: process.env.DATABASE_HOST | 'localhost',
-        user: process.env.DATABASE_USER,
-        password: process.env.DATABASE_PASSWORD,
-        database: process.env.DATABASE_NAME,
+        host: config.databaseInformation.host,
+        user: config.databaseInformation.username,
+        password: config.databaseInformation.password,
+        database: config.databaseInformation.name,
         multipleStatements: true
     });
     const queries = [
-        {query: createUserTableQuery, message: 'Creating user table...'},
-        {query: createCoinTableQuery, message: 'Creating coin table...'},
-        {query: createEntryTableQuery, message: 'Creating entry table...'},
-        {query: createTransactionTableQuery, message: 'Creating entry table...'},
-        {query: createItemTableQuery, message: 'Creating item table...'},
-        {query: createUserItemTableQuery, message: 'Creating user item table...'},
-        {query: createRoleCodeTableQuery, message: 'Creating role code table...'},
-        {query: createRoleTableQuery, message: 'Creating role table...'},
-        {query: createRequestTableQuery, message: 'Creating request table...'},
-        {query: ownerRoleCodeQuery, message: 'Creating default role role...'}
+        createUserTableQuery,
+        createCoinTableQuery,
+        createEntryTableQuery,
+        createTransactionTableQuery,
+        createItemTableQuery,
+        createUserItemTableQuery,
+        createRoleCodeTableQuery,
+        createRoleTableQuery,
+        createRequestTableQuery,
+        ownerRoleCodeQuery
     ];
     const promises = queries.map(function (query) {
         return new Promise(function (resolve, reject) {
-            console.log(query.message);
-            connection.query(query.query, [], function (err) {
+            connection.query(query,function (err) {
                 if (err) {
                     return reject(err);
                 }
@@ -244,19 +243,20 @@ exports.setup = function () {
             });
         })
     });
-    Promise.all(promises)
+    return Promise.all(promises)
         .then(function() {
-            console.log('Finished creating tables.');
-            console.log('Creating default coin');
-            connection.query(defaultCurrencyCreateQuery, [process.env.DEFAULT_COIN_NAME || 'Universal Coin',
-                process.env.DEFAULT_COIN_SYMBOL || 'μ',
-                process.env.DEFAULT_COIN_NAME || 'Universal Coin',
-                process.env.DEFAULT_COIN_SYMBOL || 'μ'], function (err) {
-                if (err) {
-                    return Promise.reject(err);
-                }
-                console.log('Finished setting up database');
-                connection.destroy();
+            return new Promise(function(resolve, reject) {
+                connection.query(defaultCurrencyCreateQuery, [config.defaultCoin.name,
+                    config.defaultCoin.symbol,
+                    config.defaultCoin.name,
+                    config.defaultCoin.symbol
+                ], function (err) {
+                    if (err) {
+                        return reject(err);
+                    }
+                    connection.destroy();
+                    return resolve();
+                });
             });
         })
         .catch(function(err) {

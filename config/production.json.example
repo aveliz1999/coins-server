@@ -1,0 +1,21 @@
+{
+  "sessionSecrets": [
+    "session secret",
+    "other session secret (like an old one being phased out)"
+  ],
+  "databaseInformation": {
+    "host": "localhost",
+    "username": "coins",
+    "password": "password",
+    "name": "coins_database",
+    "poolLimit": 10
+  },
+  "deployment": {
+    "processes": 1,
+    "port": 3000
+  },
+  "defaultCoin": {
+    "name": "Universal Coin",
+    "symbol": "μ"
+  }
+}
