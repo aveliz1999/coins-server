@@ -9,25 +9,29 @@ if(cluster.isMaster){
   console.log(`Master process started on ${process.pid}`);
 
   // Set up the required MySQL tables in the master process so that it doesn't get executed multiple times
-  mysql.setup();
+  console.log('Initializing database');
+  mysql.setup()
+      .then(function() {
+        console.log('Database initialized');
 
-  // Amount of child processes to spawn
-  const processes = config.deployment.processes;
+        // Amount of child processes to spawn
+        const processes = config.deployment.processes;
 
-  for(let i = 0; i < processes; i++){
-    cluster.fork();
-  }
+        for(let i = 0; i < processes; i++){
+          cluster.fork();
+        }
 
-  // Notify when workers die and replace them
-  cluster.on('exit', (worker, code, signal) => {
-    console.log(`Worker process ${worker.process.pid} died with code ${code}. Starting a replacement.`);
-    cluster.fork();
-  });
+        // Notify when workers die and replace them
+        cluster.on('exit', (worker, code, signal) => {
+          console.log(`Worker process ${worker.process.pid} died with code ${code}. Starting a replacement.`);
+          cluster.fork();
+        });
 
-  // Notify when workers are online
-  cluster.on('online', (worker) => {
-    console.log(`Worker process started on ${worker.process.pid}`);
-  });
+        // Notify when workers are online
+        cluster.on('online', (worker) => {
+          console.log(`Worker process started on ${worker.process.pid}`);
+        });
+      });
 }
 else{
   // If no port is specified in the environment variables, default to 3000

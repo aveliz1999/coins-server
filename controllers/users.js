@@ -236,6 +236,7 @@ exports.search = function(req, res) {
                 .connection(connection)
                 .select('email', 'name', knex.raw('bin_to_uuid(uuid) as uuid'))
                 .where('name', 'like', userInfo.name + '%')
+                .where('id', '!=', req.session.user)
                 .limit(10);
 
             res.status(200).send(users);
@@ -244,7 +245,7 @@ exports.search = function(req, res) {
         }
         catch(err) {
             console.error(err);
-            res.status(500).send({message: 'An error occurred while searching. Please try again.'})
+            res.status(500).send({message: 'An error occurred while searching. Please try again.'});
 
             if(connection){
                 connection.release();
