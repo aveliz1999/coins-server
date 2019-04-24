@@ -6,9 +6,6 @@ const chai = require('chai');
 chai.use(require('chai-as-promised'));
 chai.use(require('chai-uuid'));
 const expect = chai.expect;
-
-const sinon = require('sinon');
-
 const mysql = require('../database/mysql');
 const knex = require('knex')({client: 'mysql'});
 const encryptionUtil = require('../util/encryption');

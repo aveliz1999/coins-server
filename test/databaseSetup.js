@@ -5,16 +5,12 @@ const chaiAsPromised = require('chai-as-promised');
 chai.use(chaiAsPromised);
 const expect = chai.expect;
 
-const sinon = require('sinon');
-
 const mysql = require('../database/mysql');
 const knex = require('knex')({client: 'mysql'});
 
 describe('Database setup', function() {
     it('Setup function runs without error', async function() {
-        sinon.stub(console, 'log');
         await expect(mysql.setup()).to.be.fulfilled;
-        console.log.restore();
     });
 
     let connection;
