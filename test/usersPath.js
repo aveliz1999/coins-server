@@ -39,6 +39,13 @@ describe('Users path tests', function() {
                         .expect(400, {"message": "child \"email\" fails because [\"email\" is required]"});
                 });
 
+                it('Email must be a string', async function() {
+                    await request(app)
+                        .post('/users')
+                        .send({email: false})
+                        .expect(400, {"message":"child \"email\" fails because [\"email\" must be a string]"});
+                });
+
                 it('Email must not be empty', async function() {
                     await request(app)
                         .post('/users')
@@ -69,6 +76,13 @@ describe('Users path tests', function() {
                         .expect(400, {"message":"child \"password\" fails because [\"password\" is required]"});
                 });
 
+                it('Password must be a string', async function() {
+                    await request(app)
+                        .post('/users')
+                        .send({email: "test@test.test", password: false})
+                        .expect(400, {"message":"child \"password\" fails because [\"password\" must be a string]"});
+                });
+
                 it('Password must not be empty', async function() {
                     await request(app)
                         .post('/users')
@@ -97,6 +111,13 @@ describe('Users path tests', function() {
                         .post('/users')
                         .send({email: "test@test.test", password: "this is a password"})
                         .expect(400, {"message":"child \"name\" fails because [\"name\" is required]"});
+                });
+
+                it('Name must be a string', async function() {
+                    await request(app)
+                        .post('/users')
+                        .send({email: "test@test.test", password: "this is a password", name: false})
+                        .expect(400, {"message":"child \"name\" fails because [\"name\" must be a string]"});
                 });
 
                 it('Name must not be empty', async function() {
@@ -161,6 +182,13 @@ describe('Users path tests', function() {
                         .expect(400, {"message": "child \"email\" fails because [\"email\" is required]"});
                 });
 
+                it('Email must be a string', async function() {
+                    await request(app)
+                        .post('/users/login')
+                        .send({email: false})
+                        .expect(400, {"message":"child \"email\" fails because [\"email\" must be a string]"});
+                });
+
                 it('Email must not be empty', async function() {
                     await request(app)
                         .post('/users/login')
@@ -189,6 +217,13 @@ describe('Users path tests', function() {
                         .post('/users/login')
                         .send({email: "test@test.test"})
                         .expect(400, {"message":"child \"password\" fails because [\"password\" is required]"});
+                });
+
+                it('Password must be a string', async function() {
+                    await request(app)
+                        .post('/users/login')
+                        .send({email: "test@test.test", password: false})
+                        .expect(400, {"message":"child \"password\" fails because [\"password\" must be a string]"});
                 });
 
                 it('Password must not be empty', async function() {
