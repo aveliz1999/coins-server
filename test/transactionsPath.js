@@ -97,116 +97,126 @@ describe('Transactions path tests', function() {
         describe('POST requests', function() {
             describe('Create transaction', function() {
                 describe('Input validation', function() {
-                    it('Target is required', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({})
-                            .expect(400, {"message":"child \"target\" fails because [\"target\" is required]"});
+                    describe('Target', function() {
+                        it('Target is required', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({})
+                                .expect(400, {"message":"child \"target\" fails because [\"target\" is required]"});
+                        });
+
+                        it('Target must not be empty', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: ""})
+                                .expect(400, {"message":"child \"target\" fails because [\"target\" is not allowed to be empty]"});
+                        });
+
+                        it('Target must be a string', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: false})
+                                .expect(400, {"message":"child \"target\" fails because [\"target\" must be a string]"});
+                        });
+
+                        it('Target must be a valid UUID', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: "test"})
+                                .expect(400, {"message":"child \"target\" fails because [\"target\" must be a valid GUID]"});
+                        });
                     });
 
-                    it('Target must not be empty', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: ""})
-                            .expect(400, {"message":"child \"target\" fails because [\"target\" is not allowed to be empty]"});
+                    describe('Coin', function() {
+                        it('Coin is required', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target})
+                                .expect(400, {"message":"child \"coin\" fails because [\"coin\" is required]"});
+                        });
+
+                        it('Coin must not be empty', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: ""})
+                                .expect(400, {"message":"child \"coin\" fails because [\"coin\" is not allowed to be empty]"});
+                        });
+
+                        it('Coin must be a string', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: false})
+                                .expect(400, {"message":"child \"coin\" fails because [\"coin\" must be a string]"});
+                        });
+
+                        it('Coin must be a valid UUID', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: "test"})
+                                .expect(400, {"message":"child \"coin\" fails because [\"coin\" must be a valid GUID]"});
+                        });
                     });
 
-                    it('Target must be a string', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: false})
-                            .expect(400, {"message":"child \"target\" fails because [\"target\" must be a string]"});
+                    describe('Amount', function() {
+                        it('Amount is required', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: coin})
+                                .expect(400, {"message":"child \"amount\" fails because [\"amount\" is required]"});
+                        });
+
+                        it('Amount must be a number', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: coin, amount: false})
+                                .expect(400, {"message":"child \"amount\" fails because [\"amount\" must be a number]"});
+                        });
+
+                        it('Amount must be an integer', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: coin, amount: 1.5})
+                                .expect(400, {"message":"child \"amount\" fails because [\"amount\" must be an integer]"});
+                        });
+
+                        it('Amount must be greater than 0', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: coin, amount: 0})
+                                .expect(400, {"message":"child \"amount\" fails because [\"amount\" must be greater than 0]"});
+                        });
                     });
 
-                    it('Target must be a valid UUID', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: "test"})
-                            .expect(400, {"message":"child \"target\" fails because [\"target\" must be a valid GUID]"});
+                    describe('Message', function() {
+                        it('Message is required', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: coin, amount: 1})
+                                .expect(400, {"message":"child \"message\" fails because [\"message\" is required]"});
+                        });
+
+                        it('Message must be less than or equal to 64 characters long', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: coin, amount: 1, message: "12345678901234567890123456789012345678901234567890123456789012345"})
+                                .expect(400, {"message":"child \"message\" fails because [\"message\" length must be less than or equal to 64 characters long]"});
+                        });
                     });
 
-                    it('Coin is required', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target})
-                            .expect(400, {"message":"child \"coin\" fails because [\"coin\" is required]"});
-                    });
+                    describe('Charging', function() {
+                        it('Charging is required', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: coin, amount: 1, message: ""})
+                                .expect(400, {"message":"child \"charging\" fails because [\"charging\" is required]"});
+                        });
 
-                    it('Coin must not be empty', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: ""})
-                            .expect(400, {"message":"child \"coin\" fails because [\"coin\" is not allowed to be empty]"});
-                    });
-
-                    it('Coin must be a string', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: false})
-                            .expect(400, {"message":"child \"coin\" fails because [\"coin\" must be a string]"});
-                    });
-
-                    it('Coin must be a valid UUID', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: "test"})
-                            .expect(400, {"message":"child \"coin\" fails because [\"coin\" must be a valid GUID]"});
-                    });
-
-                    it('Amount is required', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: coin})
-                            .expect(400, {"message":"child \"amount\" fails because [\"amount\" is required]"});
-                    });
-
-                    it('Amount must be a number', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: coin, amount: false})
-                            .expect(400, {"message":"child \"amount\" fails because [\"amount\" must be a number]"});
-                    });
-
-                    it('Amount must be an integer', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: coin, amount: 1.5})
-                            .expect(400, {"message":"child \"amount\" fails because [\"amount\" must be an integer]"});
-                    });
-
-                    it('Amount must be greater than 0', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: coin, amount: 0})
-                            .expect(400, {"message":"child \"amount\" fails because [\"amount\" must be greater than 0]"});
-                    });
-
-                    it('Message is required', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: coin, amount: 1})
-                            .expect(400, {"message":"child \"message\" fails because [\"message\" is required]"});
-                    });
-
-                    it('Message must be less than or equal to 64 characters long', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: coin, amount: 1, message: "12345678901234567890123456789012345678901234567890123456789012345"})
-                            .expect(400, {"message":"child \"message\" fails because [\"message\" length must be less than or equal to 64 characters long]"});
-                    });
-
-                    it('Charging is required', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: coin, amount: 1, message: ""})
-                            .expect(400, {"message":"child \"charging\" fails because [\"charging\" is required]"});
-                    });
-
-                    it('Charging must be a boolean', async function() {
-                        await agent
-                            .post('/transactions')
-                            .send({target: target, coin: coin, amount: 1, message: "", charging: ""})
-                            .expect(400, {"message":"child \"charging\" fails because [\"charging\" must be a boolean]"});
+                        it('Charging must be a boolean', async function() {
+                            await agent
+                                .post('/transactions')
+                                .send({target: target, coin: coin, amount: 1, message: "", charging: ""})
+                                .expect(400, {"message":"child \"charging\" fails because [\"charging\" must be a boolean]"});
+                        });
                     });
                 });
 
