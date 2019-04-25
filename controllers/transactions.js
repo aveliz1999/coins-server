@@ -32,6 +32,7 @@ exports.create = function(req, res) {
             .required(),
         message: Joi.string()
             .max(64)
+            .required()
             .allow(''),
         charging: Joi.boolean()
             .required()
@@ -221,7 +222,7 @@ exports.declineRequest = function (req, res) {
             })
             .required()
     };
-    Joi.validate(req.body, transactionSchema, async function (err, values) {
+    Joi.validate(req.body, transactionSchema, async function (err, requestInfo) {
         if (err) {
             return res.status(400).send({message: err.message});
         }
@@ -234,7 +235,7 @@ exports.declineRequest = function (req, res) {
             const requestResult = await knex('request')
                 .connection(connection)
                 .select('id', 'sender')
-                .where('uuid', knex.raw('uuid_to_bin(?)', [uuid]))
+                .where('uuid', knex.raw('uuid_to_bin(?)', [requestInfo.requestId]))
                 .first();
 
             // If it's a valid request, delete it
