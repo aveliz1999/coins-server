@@ -330,7 +330,8 @@ exports.searchRequests = async function (req, res) {
                     name: request.coin_name,
                     symbol: request.coin_symbol,
                     uuid: request.coin_uuid
-                }
+                },
+                timestamp: request.timestamp
             }
         });
 
@@ -379,9 +380,14 @@ exports.searchTransactions = async function (req, res) {
                 'transaction.amount',
                 'transaction.timestamp',
                 'transaction.message',
-                'user.email as user_email',
-                'user.name as user_name',
-                knex.raw('bin_to_uuid(`user`.`uuid`) as `user_uuid`'),
+                'sender.id as sender_id',
+                'sender.email as sender_email',
+                'sender.name as sender_name',
+                knex.raw('bin_to_uuid(`sender`.`uuid`) as `sender_uuid`'),
+                'receiver.id as receiver_id',
+                'receiver.email as receiver_email',
+                'receiver.name as receiver_name',
+                knex.raw('bin_to_uuid(`receiver`.`uuid`) as `receiver_uuid`'),
                 'coin.name as coin_name',
                 'coin.symbol as coin_symbol',
                 knex.raw('bin_to_uuid(`coin`.`uuid`) as `coin_uuid`'))
@@ -390,7 +396,8 @@ exports.searchTransactions = async function (req, res) {
                     .orWhere('receiver', req.session.user)
             })
             .where('transaction.id', '<', transactionId)
-            .join('user', knex.raw('(`user`.`id` = `transaction`.`sender` OR `user`.`id` = `transaction`.`receiver`) AND `user`.`id` <> ?', [req.session.user]))
+            .join('user as sender', 'transaction.sender', 'sender.id')
+            .join('user as receiver', 'transaction.receiver', 'receiver.id')
             .join('coin', 'transaction.coin', 'coin.id');
 
         // If not transactions are found, return an empty array with a last ID of 0 to signify there are no more
@@ -405,15 +412,21 @@ exports.searchTransactions = async function (req, res) {
 
         // Map the information returned from the database into objects
         transactionsList = transactionsList.map(function(transaction) {
+            const sentByUser = transaction.sender_id === req.session.user;
             return {
                 amount: transaction.amount,
                 timestamp: transaction.timestamp,
                 message: transaction.message,
-                user: {
-                    email: transaction.user_email,
-                    name: transaction.user_name,
-                    uuid: transaction.user_uuid
+                user: sentByUser ? {
+                    email: transaction.receiver_email,
+                    name: transaction.receiver_name,
+                    uuid: transaction.receiver_uuid
+                } : {
+                    email: transaction.sender_email,
+                    name: transaction.sender_name,
+                    uuid: transaction.sender_uuid
                 },
+                sent: sentByUser,
                 coin: {
                     name: transaction.coin_name,
                     symbol: transaction.coin_symbol,
