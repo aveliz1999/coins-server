@@ -23,13 +23,13 @@ const appSession = {
   store: new MySQLStore({}, mysql.pool)
 };
 // Enable security if not in development mode
-if(app.get('env') !== 'development'){
+if(app.get('env') === 'production'){
   app.set('trust proxy', 1);
   appSession.cookie.secure = true;
 }
 app.use(session(appSession));
 
-if(app.get('env') !== 'development') {
+if(app.get('env') !== 'testing') {
   app.use(logger('combined'));
 }
 app.use(express.json());

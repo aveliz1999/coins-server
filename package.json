@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node ./bin/www",
-    "test": "NODE_ENV=development mocha"
+    "test": "NODE_ENV=testing mocha"
   },
   "dependencies": {
     "bcrypt": "^3.0.4",
