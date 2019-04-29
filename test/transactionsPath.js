@@ -536,7 +536,7 @@ describe('Transactions path tests', function() {
                 });
 
                 describe('Transactions are present', function() {
-                    let lastRequestId;
+                    let lastTransactionId;
 
                     before(async function() {
                         const connection = await mysql.getConnection();
@@ -557,7 +557,7 @@ describe('Transactions path tests', function() {
 
                     it('Returns a populated array with a valid last id', async function() {
                         await agent
-                            .get('/transactions/search/requests')
+                            .get('/transactions/search')
                             .expect(200)
                             .expect(function(res) {
                                 const transactionsResponse = res.body;
@@ -565,7 +565,7 @@ describe('Transactions path tests', function() {
 
                                 expect(transactionsResponse.lastId).to.be.a('number');
 
-                                const transactionArray = transactionsResponse.requests;
+                                const transactionArray = transactionsResponse.transactions;
                                 expect(transactionArray).to.be.a('array');
                                 expect(transactionArray).to.have.lengthOf(1);
 
@@ -573,13 +573,12 @@ describe('Transactions path tests', function() {
                                 expect(transaction).to.be.a('object');
                                 expect(transaction.amount).to.be.a('number');
                                 expect(transaction.message).to.be.a('string');
-                                expect(transaction.uuid).to.be.a.uuid('v1');
 
-                                const transactiontCoin = transaction.coin;
-                                expect(transactiontCoin).to.be.a('object');
-                                expect(transactiontCoin.name).to.be.a('string');
-                                expect(transactiontCoin.symbol).to.be.a('string');
-                                expect(transactiontCoin.uuid).to.be.a.uuid('v1');
+                                const transactionCoin = transaction.coin;
+                                expect(transactionCoin).to.be.a('object');
+                                expect(transactionCoin.name).to.be.a('string');
+                                expect(transactionCoin.symbol).to.be.a('string');
+                                expect(transactionCoin.uuid).to.be.a.uuid('v1');
 
                                 const transactionUser = transaction.user;
                                 expect(transactionUser).to.be.a('object');
@@ -587,13 +586,13 @@ describe('Transactions path tests', function() {
                                 expect(transactionUser.name).to.be.a('string');
                                 expect(transactionUser.uuid).to.be.a.uuid('v1');
 
-                                lastRequestId = transactionsResponse.lastId;
+                                lastTransactionId = transactionsResponse.lastId;
                             });
                     });
 
                     it('Providing an ID past the returned last ID returns an empty result', async function() {
                         await agent
-                            .get(`/transactions/search/${lastRequestId}`)
+                            .get(`/transactions/search/${lastTransactionId}`)
                             .expect(200)
                             .expect(200, {"transactions":[],"lastId":0});
                     });
