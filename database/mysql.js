@@ -98,6 +98,7 @@ const createRoleTableQuery = 'CREATE TABLE IF NOT EXISTS `role` (\n' +
     '  KEY `role_coin_idx` (`coin`),\n' +
     '  KEY `role_user_idx` (`user`),\n' +
     '  KEY `role_code_idx` (`role_code`),\n' +
+    '  UNIQUE KEY `coin_user_UNIQUE` (`coin`, `user`),\n' +
     '  CONSTRAINT `role_code` FOREIGN KEY (`role_code`) REFERENCES `role_code` (`id`) ON DELETE CASCADE,\n' +
     '  CONSTRAINT `role_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`) ON DELETE CASCADE,\n' +
     '  CONSTRAINT `role_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE\n' +
