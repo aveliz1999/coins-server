@@ -51,5 +51,98 @@ describe('Coins path tests', function() {
                     expect(coin.uuid).to.be.a.uuid('v1');
                 });
         });
+
+        describe('Create coin', function() {
+            describe('Input validation', function() {
+                describe('Name', function() {
+                    it('Name is required', async function() {
+                        await agent
+                            .post('/coins')
+                            .send()
+                            .expect(400, {"message":"child \"name\" fails because [\"name\" is required]"});
+                    });
+
+                    it('Name must not be empty', async function() {
+                        await agent
+                            .post('/coins')
+                            .send({name: ""})
+                            .expect(400, {"message":"child \"name\" fails because [\"name\" is not allowed to be empty]"});
+                    });
+
+                    it('Name must be a string', async function() {
+                        await agent
+                            .post('/coins')
+                            .send({name: false})
+                            .expect(400, {"message":"child \"name\" fails because [\"name\" must be a string]"});
+                    });
+
+                    it('Name must be at least 3 characters long', async function() {
+                        await agent
+                            .post('/coins')
+                            .send({name: "12"})
+                            .expect(400, {"message":"child \"name\" fails because [\"name\" length must be at least 3 characters long]"});
+                    });
+
+                    it('Name must be less than or equal to 45 characters long', async function() {
+                        await agent
+                            .post('/coins')
+                            .send({name: "1234567890123456789012345678901234567890123456"})
+                            .expect(400, {"message":"child \"name\" fails because [\"name\" length must be less than or equal to 45 characters long]"});
+                    });
+
+                    it('Name must match the regex ^[a-zA-Z0-9 ]+$', async function() {
+                        await agent
+                            .post('/coins')
+                            .send({name: "Test%"})
+                            .expect(400, {"message":"child \"name\" fails because [\"name\" with value \"Test%\" fails to match the required pattern: /^[a-zA-Z0-9 ]+$/]"});
+                    });
+                });
+
+                describe('Symbol', function() {
+                    it('Symbol is required', async function() {
+                        await agent
+                            .post('/coins')
+                            .send({name: "Test"})
+                            .expect(400, {"message":"child \"symbol\" fails because [\"symbol\" is required]"});
+                    });
+
+                    it('Symbol must not be empty', async function() {
+                        await agent
+                            .post('/coins')
+                            .send({name: "Test", symbol: ""})
+                            .expect(400, {"message":"child \"symbol\" fails because [\"symbol\" is not allowed to be empty]"});
+                    });
+
+                    it('Symbol must be a string', async function() {
+                        await agent
+                            .post('/coins')
+                            .send({name: "Test", symbol: false})
+                            .expect(400, {"message":"child \"symbol\" fails because [\"symbol\" must be a string]"});
+                    });
+
+                    it('Symbol must be less than or equal to 3 characters long', async function() {
+                        await agent
+                            .post('/coins')
+                            .send({name: "Test", symbol: "1234"})
+                            .expect(400, {"message":"child \"symbol\" fails because [\"symbol\" length must be less than or equal to 3 characters long]"});
+                    });
+                });
+            });
+
+            describe('Request', function() {
+                it('Crates coin successfully', async function() {
+                    await agent
+                        .post('/coins')
+                        .send({name: "Test", symbol: "TST"})
+                        .expect(200)
+                        .expect(function(res) {
+                            const response = res.body;
+
+                            expect(response).to.have.property('coinUuid');
+                            expect(response.coinUuid).to.be.a.uuid('v1');
+                        });
+                })
+            });
+        });
     });
 });

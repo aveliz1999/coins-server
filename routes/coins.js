@@ -6,5 +6,6 @@ const controller = require('../controllers/coins');
 
 router.use(authenticatedMiddleware);
 router.get('/', controller.getFromSession);
+router.post('/', controller.create);
 
 module.exports = router;
