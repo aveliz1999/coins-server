@@ -10,6 +10,7 @@ const knex = require('knex')({client: 'mysql'});
 
 describe('Database setup', function() {
     it('Setup function runs without error', async function() {
+        this.timeout(5000);
         await expect(mysql.setup()).to.be.fulfilled;
     });
 
@@ -188,11 +189,11 @@ describe('Database setup', function() {
                 type: 'int(10) unsigned',
                 nullable: 'NO'
             },
-            user: {
-                type: 'int(10) unsigned',
+            name: {
+                type: 'varchar(32)',
                 nullable: 'NO'
             },
-            role_code: {
+            level: {
                 type: 'int(10) unsigned',
                 nullable: 'NO'
             }
@@ -201,19 +202,46 @@ describe('Database setup', function() {
         await testTable(schema, 'role')
     });
 
-    it('Role code table correct', async function() {
+    it('Permission table correct', async function() {
         const schema = {
             id: {
                 type: 'int(10) unsigned',
                 nullable: 'NO'
             },
-            type: {
-                type: 'varchar(45)',
+            coin: {
+                type: 'int(10) unsigned',
+                nullable: 'NO'
+            },
+            permission: {
+                type: 'enum(\'DELETE_COIN\',\'EDIT_COIN_INFO\',\'EDIT_COIN_ROLES\',\'EDIT_COIN_PERMISSIONS\',\'ADDD_USER_ROLE\',\'ADD_ITEM\',\'DELETE_ITEM\',\'EDIT_ITEM\')',
+                nullable: 'NO'
+            },
+            level: {
+                type: 'int(10) unsigned',
                 nullable: 'NO'
             }
         };
 
-        await testTable(schema, 'role_code')
+        await testTable(schema, 'permission')
+    });
+
+    it('User role table correct', async function() {
+        const schema = {
+            id: {
+                type: 'int(10) unsigned',
+                nullable: 'NO'
+            },
+            user: {
+                type: 'int(10) unsigned',
+                nullable: 'NO'
+            },
+            role: {
+                type: 'int(10) unsigned',
+                nullable: 'NO'
+            }
+        };
+
+        await testTable(schema, 'user_role')
     });
 
     it('Request table correct', async function() {

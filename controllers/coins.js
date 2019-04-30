@@ -68,12 +68,18 @@ exports.create = async function(req, res) {
                     symbol: coinInfo.symbol,
                     uuid: knex.raw('uuid_to_bin(uuid())')
                 }))[0];
-            await knex('role')
+            const roleId = (await knex('role')
                 .connection(connection)
                 .insert({
                     coin: coinId,
+                    name: 'Owner',
+                    level: 1
+                }))[0];
+            await knex('user_role')
+                .connection(connection)
+                .insert({
                     user: req.session.user,
-                    role_code: 1
+                    role: roleId
                 });
             const coinUuid = (await knex('coin')
                 .connection(connection)

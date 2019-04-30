@@ -70,12 +70,11 @@ exports.create = function (req, res) {
                 .count('id as count')
                 .first();
             if(userNumber === 1) {
-                await knex('role')
+                await knex('user_role')
                     .connection(connection)
                     .insert({
-                        coin: 1,
                         user: userId,
-                        role_code: 1
+                        role: 1
                     });
             }
 

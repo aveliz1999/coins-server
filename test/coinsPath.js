@@ -1,5 +1,8 @@
 require('./usersPath');
 
+const mysql = require('../database/mysql');
+const knex = require('knex')({client: 'mysql'});
+
 const request = require('supertest');
 
 const chai = require('chai');
@@ -130,6 +133,8 @@ describe('Coins path tests', function() {
             });
 
             describe('Request', function() {
+                let coinUuid;
+
                 it('Crates coin successfully', async function() {
                     await agent
                         .post('/coins')
@@ -140,8 +145,66 @@ describe('Coins path tests', function() {
 
                             expect(response).to.have.property('coinUuid');
                             expect(response.coinUuid).to.be.a.uuid('v1');
+
+                            coinUuid = response.coinUuid;
                         });
-                })
+                });
+
+                describe('Check coin setup', function() {
+                    let coinId;
+                    let roleId;
+                    let connection;
+
+                    before(async function() {
+                        connection = await mysql.getConnection();
+                        coinId = (await knex('coin')
+                            .connection(connection)
+                            .select('id')
+                            .where('uuid', knex.raw('uuid_to_bin(?)', [coinUuid]))
+                            .first()).id;
+                        connection.release();
+                    });
+
+                    beforeEach(async function() {
+                        connection = await mysql.getConnection();
+                    });
+
+                    afterEach(function() {
+                        connection.release();
+                    });
+
+                    it('Creates coin role successfully', async function() {
+                        const role = await knex('role')
+                            .connection(connection)
+                            .select('id', 'name', 'level')
+                            .where('coin', coinId)
+                            .first();
+
+                        expect(role).to.be.a('object');
+
+                        expect(role).to.have.property('name');
+                        expect(role.name).to.be.a('string');
+                        expect(role.name).to.equal('Owner');
+
+                        expect(role).to.have.property('level');
+                        expect(role.level).to.be.a('number');
+                        expect(role.level).to.equal(1);
+
+                        roleId = role.id;
+                    });
+
+                    it('Creates user role successfully', async function() {
+                        const userEmail = (await knex('user_role')
+                            .connection(connection)
+                            .select('user.email as email')
+                            .where('role', roleId)
+                            .join('user', 'user_role.user', 'user.id')
+                            .first()).email;
+
+                        expect(userEmail).to.be.a('string');
+                        expect(userEmail).to.equal('test@test.test')
+                    });
+                });
             });
         });
     });

@@ -81,27 +81,39 @@ const createUserItemTableQuery = 'CREATE TABLE IF NOT EXISTS `user_item` (\n' +
     '  CONSTRAINT `user_item_item` FOREIGN KEY (`item`) REFERENCES `item` (`id`) ON DELETE CASCADE,\n' +
     '  CONSTRAINT `user_item_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE\n' +
     ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
-const createRoleCodeTableQuery = 'CREATE TABLE IF NOT EXISTS `role_code` (\n' +
-    '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
-    '  `type` varchar(45) NOT NULL,\n' +
-    '  PRIMARY KEY (`id`),\n' +
-    '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
-    '  UNIQUE KEY `type_UNIQUE` (`type`)\n' +
-    ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 const createRoleTableQuery = 'CREATE TABLE IF NOT EXISTS `role` (\n' +
     '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
     '  `coin` int(10) unsigned NOT NULL,\n' +
-    '  `user` int(10) unsigned NOT NULL,\n' +
-    '  `role_code` int(10) unsigned NOT NULL,\n' +
+    '  `name` varchar(32) NOT NULL,\n' +
+    '  `level` int(10) unsigned NOT NULL,\n' +
     '  PRIMARY KEY (`id`),\n' +
     '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
     '  KEY `role_coin_idx` (`coin`),\n' +
-    '  KEY `role_user_idx` (`user`),\n' +
-    '  KEY `role_code_idx` (`role_code`),\n' +
-    '  UNIQUE KEY `coin_user_UNIQUE` (`coin`, `user`),\n' +
-    '  CONSTRAINT `role_code` FOREIGN KEY (`role_code`) REFERENCES `role_code` (`id`) ON DELETE CASCADE,\n' +
-    '  CONSTRAINT `role_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`) ON DELETE CASCADE,\n' +
-    '  CONSTRAINT `role_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE\n' +
+    '  KEY `role_level_idx` (`level`),\n' +
+    '  KEY `role_coin_level` (`coin`, `level`),\n' +
+    '  CONSTRAINT `role_coin` FOREIGN KEY (`coin`) REFERENCES `coin` (`id`) ON DELETE CASCADE\n' +
+    ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
+const createPermissionsTableQuery = 'CREATE TABLE IF NOT EXISTS `permission` (\n' +
+    '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
+    '  `coin` int(10) unsigned NOT NULL,\n' +
+    '  `permission` ENUM("DELETE_COIN","EDIT_COIN_INFO","EDIT_COIN_ROLES","EDIT_COIN_PERMISSIONS","ADDD_USER_ROLE","ADD_ITEM","DELETE_ITEM","EDIT_ITEM") NOT NULL,\n' +
+    '  `level` int(10) unsigned NOT NULL,\n' +
+    '  PRIMARY KEY (`id`),\n' +
+    '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
+    '  KEY `permission_coin_idx` (`coin`),\n' +
+    '  KEY `permission_level_idx` (`level`),\n' +
+    '  CONSTRAINT `permission_role` FOREIGN KEY (`coin`, `level`) REFERENCES `role` (`coin`, `level`) ON DELETE CASCADE' +
+    ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
+const createUserRoleTableQuery = 'CREATE TABLE IF NOT EXISTS `user_role` (\n' +
+    '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
+    '  `user` int(10) unsigned NOT NULL,\n' +
+    '  `role` int(10) unsigned NOT NULL,\n' +
+    '  PRIMARY KEY (`id`),\n' +
+    '  UNIQUE KEY `id_UNIQUE` (`id`),\n' +
+    '  KEY user_role_user_idx (`user`),\n' +
+    '  KEY user_role_role_idx (`role`),\n' +
+    '  CONSTRAINT `user_role_user` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE,\n' +
+    '  CONSTRAINT `user_role_role` FOREIGN KEY (`role`) REFERENCES `role` (`id`) ON DELETE CASCADE' +
     ') ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 const createRequestTableQuery = 'CREATE TABLE IF NOT EXISTS `request` (\n' +
     '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
@@ -124,7 +136,7 @@ const createRequestTableQuery = 'CREATE TABLE IF NOT EXISTS `request` (\n' +
     ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci';
 
 const defaultCurrencyCreateQuery = 'INSERT INTO `coin` (id, name, symbol, uuid) VALUES (1, ?, ?, UUID_TO_BIN(UUID())) ON DUPLICATE KEY UPDATE name=?, symbol=?';
-const ownerRoleCodeQuery = 'INSERT INTO `role_code`(id, `type`) VALUES(1, "OWNER") ON DUPLICATE KEY UPDATE `type`="OWNER"';
+const createDefaultCoinOwnerRoleQuery = 'INSERT IGNORE INTO `role` (id, coin, name, level) VALUES (1, 1, "Owner", 1)';
 
 /**
  * The connection pool used for queries
@@ -229,10 +241,10 @@ exports.setup = function () {
         createTransactionTableQuery,
         createItemTableQuery,
         createUserItemTableQuery,
-        createRoleCodeTableQuery,
         createRoleTableQuery,
-        createRequestTableQuery,
-        ownerRoleCodeQuery
+        createPermissionsTableQuery,
+        createUserRoleTableQuery,
+        createRequestTableQuery
     ];
     const promises = queries.map(function (query) {
         return new Promise(function (resolve, reject) {
@@ -246,19 +258,31 @@ exports.setup = function () {
     });
     return Promise.all(promises)
         .then(function() {
-            return new Promise(function(resolve, reject) {
-                connection.query(defaultCurrencyCreateQuery, [config.defaultCoin.name,
-                    config.defaultCoin.symbol,
-                    config.defaultCoin.name,
-                    config.defaultCoin.symbol
-                ], function (err) {
-                    if (err) {
-                        return reject(err);
-                    }
-                    connection.destroy();
-                    return resolve();
-                });
-            });
+            return Promise.all(
+                [new Promise(function(resolve, reject) {
+                    connection.query(defaultCurrencyCreateQuery, [config.defaultCoin.name,
+                        config.defaultCoin.symbol,
+                        config.defaultCoin.name,
+                        config.defaultCoin.symbol
+                    ], function (err) {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve();
+                    });
+                }),
+                new Promise(function(resolve, reject) {
+                    connection.query(createDefaultCoinOwnerRoleQuery, function(err) {
+                        if (err) {
+                            return reject(err);
+                        }
+                        return resolve();
+                    });
+                })]
+            );
+        })
+        .then(function() {
+            return connection.destroy();
         })
         .catch(function(err) {
             console.error(err);
