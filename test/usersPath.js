@@ -165,7 +165,7 @@ describe('Users path tests', function() {
                     .post('/users')
                     .send({email: "test@test.test", password: "this is a password", name: "Test Test"})
                     .expect(400, {"message":"A user with that email already exists."});
-            });
+            })
         });
 
     });
