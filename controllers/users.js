@@ -209,6 +209,38 @@ exports.getFromSession = async function (req, res) {
 };
 
 /**
+ * Get the role name, role level, and coin UUID of the roles that are assigned to the used in session
+ *
+ * @param req Request object
+ * @param res Response object
+ */
+exports.getRolesFromSession = async function(req, res) {
+    let connection;
+    try {
+        connection = await mysql.getConnection();
+
+        // Get the coin uuid, the role name, and the role level
+        const roles = await knex('user_role')
+            .connection(connection)
+            .select(knex.raw('bin_to_uuid(`coin`.`uuid`) as coin'), 'role.name as role', 'role.level')
+            .where('user', req.session.user)
+            .join('role', 'role.id', 'user_role.role')
+            .join('coin', 'coin.id', 'role.coin');
+        res.status(200).send(roles);
+
+        connection.release();
+    }
+    catch(err) {
+        console.error(err);
+        res.status(500).send({message: 'An error occurred while retrieving the user role information. Please try again.'});
+
+        if(connection){
+            connection.release();
+        }
+    }
+};
+
+/**
  * Search for users with names that begin with the given name.
  * Returns a list of user objects without the internal ID and the user passwords.
  *

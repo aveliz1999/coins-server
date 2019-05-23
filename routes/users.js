@@ -11,6 +11,7 @@ router.use(authenticatedMiddleware);
 
 
 router.get('/', controller.getFromSession);
+router.get('/roles', controller.getRolesFromSession);
 router.get('/search/:name', controller.search);
 
 module.exports = router;

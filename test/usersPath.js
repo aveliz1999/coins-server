@@ -3,7 +3,6 @@ require('./databaseSetup');
 const request = require('supertest');
 
 const chai = require('chai');
-chai.use(require('chai-as-promised'));
 chai.use(require('chai-uuid'));
 const expect = chai.expect;
 const mysql = require('../database/mysql');
@@ -14,7 +13,7 @@ const app = require('../app');
 
 describe('Users path tests', function() {
     describe('Unauthenticated requests', function() {
-        it('GET request returns 403', async function() {
+        it('Get user information returns 403', async function() {
             await request(app)
                 .get('/users')
                 .expect(403);
@@ -23,6 +22,12 @@ describe('Users path tests', function() {
         it('Search returns 403', async function() {
             await request(app)
                 .get('/users/search/test')
+                .expect(403);
+        });
+
+        it('Get user roles returns 403', async function() {
+            await request(app)
+                .get('/users/roles')
                 .expect(403);
         });
     });
@@ -154,6 +159,7 @@ describe('Users path tests', function() {
             });
 
             it('Register successfully', async function() {
+                this.timeout(5000);
                 await request(app)
                     .post('/users')
                     .send({email: "test@test.test", password: "this is a password", name: "Test Test"})
@@ -348,6 +354,15 @@ describe('Users path tests', function() {
                     expect(resultUser.email).to.equal('tes@test.test');
                     expect(resultUser.name).to.equal('Other Test User');
                     expect(resultUser.uuid).to.be.a.uuid('v1');
+                });
+        });
+
+        it('Get roles returns empty array', async function() {
+            await agent
+                .get('/users/roles')
+                .expect(200)
+                .expect(function(res) {
+                    expect(res.body).to.be.a('array');
                 });
         });
     })

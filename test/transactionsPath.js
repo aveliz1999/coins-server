@@ -3,7 +3,6 @@ require('./usersPath');
 const request = require('supertest');
 
 const chai = require('chai');
-chai.use(require('chai-as-promised'));
 chai.use(require('chai-uuid'));
 const expect = chai.expect;
 const mysql = require('../database/mysql');
