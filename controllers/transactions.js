@@ -398,7 +398,9 @@ exports.searchTransactions = async function (req, res) {
             .where('transaction.id', '<', transactionId)
             .join('user as sender', 'transaction.sender', 'sender.id')
             .join('user as receiver', 'transaction.receiver', 'receiver.id')
-            .join('coin', 'transaction.coin', 'coin.id');
+            .join('coin', 'transaction.coin', 'coin.id')
+            .orderBy('timestamp', 'desc')
+            .limit(10);
 
         // If not transactions are found, return an empty array with a last ID of 0 to signify there are no more
         if (transactionsList.length === 0) {
