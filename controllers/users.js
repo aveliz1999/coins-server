@@ -49,11 +49,11 @@ exports.create = function (req, res) {
                     name: userInfo.name,
                     uuid: knex.raw('UUID_TO_BIN(UUID())')
                 });
-            userUuid = {uuid} = await knex('user')
+            userUuid = (await knex('user')
                 .connection(connection)
                 .select(knex.raw('bin_to_uuid(uuid) as `uuid`'))
                 .where('id', userId)
-                .first();
+                .first()).uuid;
 
             // Create a coin entry for the user for the default coin
             await knex('entry')
