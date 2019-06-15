@@ -93,9 +93,8 @@ exports.create = async function(req, res) {
             return res.status(400).send({message: err.message});
         }
 
-        let coinUuid;
         try {
-            mysql.db.transaction(async transaction => {
+            let {uuid: coinUuid} = await mysql.db.transaction(async transaction => {
                 // Create the coin with the given information and store its id
                 const coinId = await transaction('coin')
                     .insert({
@@ -120,14 +119,13 @@ exports.create = async function(req, res) {
                     });
 
                 // Get the UUID of the coin
-                ({coinUuid} =
-                    await transaction('coin')
-                        .select(knex.raw('bin_to_uuid(uuid) as uuid'))
-                        .where('id', coinId)
-                        .first() || {});
+                return await transaction('coin')
+                    .select(knex.raw('bin_to_uuid(uuid) as uuid'))
+                    .where('id', coinId)
+                    .first() || {};
             });
 
-            res.status(200).send({coinUuid: coinUuid});
+            res.status(200).send({coinUuid});
         }
         catch(err) {
             console.error(err);
