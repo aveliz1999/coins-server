@@ -1,6 +1,7 @@
 const mysql = require('mysql');
 const config = require('../config/' + process.env.NODE_ENV + '.json');
 const promisify = require('util').promisify;
+const knex = require('knex');
 
 const pool = mysql.createPool({
     connectionLimit: config.databaseInformation.connectionLimit,
@@ -9,6 +10,22 @@ const pool = mysql.createPool({
     password: config.databaseInformation.password,
     database: config.databaseInformation.name
 });
+
+db = knex({
+    client: 'mysql',
+    connection: {
+        host: config.databaseInformation.host,
+        user: config.databaseInformation.username,
+        password: config.databaseInformation.password,
+        database: config.databaseInformation.name
+    },
+    pool: {
+        min: 0,
+        max: config.databaseInformation.connectionLimit
+    }
+});
+
+exports.db = db;
 
 const createUserTableQuery = 'CREATE TABLE IF NOT EXISTS `user` (\n' +
     '  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\n' +
