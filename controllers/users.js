@@ -120,9 +120,6 @@ exports.login = function (req, res) {
 
             const {id: userId, password: storedPassword, uuid} = user;
 
-            console.log(userInfo);
-            console.log(user);
-
             // Password comparison fails
             if (!await encryptionUtil.bcryptCompare(userInfo.password, storedPassword)) {
                 return res.status(400).send({message: 'Incorrect username or password.'})
@@ -221,16 +218,6 @@ exports.search = function(req, res) {
                 })
                 .limit(10)
                 .orderBy('name', 'desc');
-
-            console.log(mysql.db('user')
-                .select('email', 'name', knex.raw('bin_to_uuid(`uuid`) as `uuid`'))
-                .where('id', '!=', req.session.user)
-                .where(function() {
-                    this.where('name', 'like', searchTerm + '%')
-                        .orWhere('email', 'like', searchTerm + '%')
-                })
-                .limit(10)
-                .orderBy('name', 'desc').toQuery());
 
             res.status(200).send(users);
         }
