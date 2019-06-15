@@ -11,24 +11,17 @@ const Joi = require('joi');
  * @param res Response object
  */
 exports.getFromSession = async function(req, res) {
-    let connection;
     try {
-        connection = await mysql.getConnection();
         // Get all coin (name and symbol) and the amounts owned by the user
-        const entries = await knex('entry')
-            .connection(connection)
-            .select('amount', 'coin.name', 'coin.symbol', knex.raw('bin_to_uuid(`coin`.`uuid`) as `uuid`'))
+        const entries = await mysql.db('entry')
+            .select('entry.amount', 'coin.name', 'coin.symbol', knex.raw('bin_to_uuid(`coin`.`uuid`) as `uuid`'))
             .where('user', req.session.user)
             .join('coin', 'entry.coin', 'coin.id');
-        connection.release();
         res.status(200).send(entries);
     }
     catch(err) {
         console.error(err);
         res.status(500).send({message: 'An error occurred retrieving your coins. Please try again.'});
-        if(connection) {
-            connection.release();
-        }
     }
 };
 
@@ -54,13 +47,9 @@ exports.getFromUuid = async function(req, res) {
             return res.status(400).send({message: err.message});
         }
 
-        let connection;
         try {
-            connection = await mysql.getConnection();
-
             // Get the coin (name, symbol) that matches the coin UUID requested
-            const coin = await knex('coin')
-                .connection(connection)
+            const coin = await mysql.db('coin')
                 .select('name', 'symbol')
                 .where('uuid', knex.raw('uuid_to_bin(?)', [requestInfo.uuid]))
                 .first();
@@ -71,15 +60,10 @@ exports.getFromUuid = async function(req, res) {
             else {
                 res.status(400).send({message: 'Unknown coin UUID.'})
             }
-
-            connection.release();
         }
         catch(err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred retrieving the coin information. Please try again.'});
-            if(connection) {
-                connection.release();
-            }
         }
     });
 };
@@ -109,52 +93,45 @@ exports.create = async function(req, res) {
             return res.status(400).send({message: err.message});
         }
 
-        let connection;
+        let coinUuid;
         try {
-            connection = await mysql.getConnection();
-            await mysql.beginTransaction(connection);
+            mysql.db.transaction(async transaction => {
+                // Create the coin with the given information and store its id
+                const coinId = await transaction('coin')
+                    .insert({
+                        name: coinInfo.name,
+                        symbol: coinInfo.symbol,
+                        uuid: knex.raw('uuid_to_bin(uuid())')
+                    });
 
-            // Create the coin with the given information and store its id
-            const coinId = (await knex('coin')
-                .connection(connection)
-                .insert({
-                    name: coinInfo.name,
-                    symbol: coinInfo.symbol,
-                    uuid: knex.raw('uuid_to_bin(uuid())')
-                }))[0];
-            // Create an owner role for the coin that was created
-            const roleId = (await knex('role')
-                .connection(connection)
-                .insert({
-                    coin: coinId,
-                    name: 'Owner',
-                    level: 1
-                }))[0];
-            // Assign the user to the owner role
-            await knex('user_role')
-                .connection(connection)
-                .insert({
-                    user: req.session.user,
-                    role: roleId
-                });
-            // Get the UUID of the coin
-            const coinUuid = (await knex('coin')
-                .connection(connection)
-                .select(knex.raw('bin_to_uuid(uuid) as uuid'))
-                .where('id', coinId)
-                .first()).uuid;
+                // Create an owner role for the coin that was created
+                const roleId = await transaction('role')
+                    .insert({
+                        coin: coinId,
+                        name: 'Owner',
+                        level: 1
+                    });
 
-            await mysql.commitTransaction(connection);
-            connection.release();
+                // Assign the user to the owner role
+                await transaction('user_role')
+                    .insert({
+                        user: req.session.user,
+                        role: roleId
+                    });
+
+                // Get the UUID of the coin
+                ({coinUuid} =
+                    await transaction('coin')
+                        .select(knex.raw('bin_to_uuid(uuid) as uuid'))
+                        .where('id', coinId)
+                        .first() || {});
+            });
 
             res.status(200).send({coinUuid: coinUuid});
         }
         catch(err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred while creating your coins. Please try again.'});
-            return connection.rollback(function() {
-                connection.release();
-            });
         }
     });
 };
@@ -192,47 +169,39 @@ exports.update = function(req, res) {
             return res.status(400).send({message: 'Cannot update information if nothing is provided to update.'});
         }
 
-        let connection;
         try {
-            connection = await mysql.getConnection();
             // Get the id of the coin that matches the uuid that is being updated
-            const {coinId} = (await knex('coin')
-                .connection(connection)
+            const {coinId} = await mysql.db('coin')
                 .select('coin.id as coinId')
                 .where('uuid', knex.raw('uuid_to_bin(?)', [coinInfo.uuid]))
-                .first()) || {};
+                .first() || {};
             if(!coinId) {
-                connection.release();
                 return res.status(400).send({message: 'Unknown coin UUID'});
             }
 
             // Get the role level of the user trying to update the coin
-            const {roleLevel} = (await knex('user_role')
-                .connection(connection)
+            const {roleLevel} = await mysql.db('user_role')
                 .select('role.level as roleLevel')
                 .where('user', req.session.user)
                 .join('role', 'user_role.role', 'role.id')
-                .first()) || {};
+                .first() || {};
             // If no role level is found, the user cannot edit the coin
             if(!roleLevel) {
-                connection.release();
                 return res.status(400).send({message: 'You do not have permission to perform this action.'})
             }
 
             // Get the permission level required to update the coin information, defaulting to 1
-            const editPermissionLevel = (await knex('permission')
-                .connection(connection)
+            const editPermissionLevel = await mysql.db('permission')
                 .select('level')
                 .where('coin', coinId)
                 .where('permission', 'EDIT_COIN_INFO')
-                .first()) || 1;
+                .first() || 1;
             // If the user's role doesn't meet the permission required level, they cannot update the coin
             if(roleLevel > editPermissionLevel) {
-                connection.release();
                 return res.status(400).send({message: 'You do not have permission to perform this action.'})
             }
 
-            let query = knex('coin')
+            let query = mysql.db('coin')
                 .where('id', coinId);
             if(coinInfo.name) {
                 query = query.update('name', coinInfo.name);
@@ -241,22 +210,17 @@ exports.update = function(req, res) {
                 query = query.update('symbol', coinInfo.symbol)
             }
 
-            const result = await query.connection(connection);
+            const result = await query;
             if(result === 1) {
                 res.status(200).send({message: 'Coin updated successfully'});
             }
             else {
                 res.status(400).send({message: 'Unknown coin UUID'})
             }
-
-            connection.release();
         }
         catch(err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred updating the coin information. Please try again.'});
-            if(connection) {
-                connection.release();
-            }
         }
     });
 };
