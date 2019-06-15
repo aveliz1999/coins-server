@@ -1,5 +1,6 @@
 const mysql = require('mysql');
 const config = require('../config/' + process.env.NODE_ENV + '.json');
+const promisify = require('util').promisify;
 
 const pool = mysql.createPool({
     connectionLimit: config.databaseInformation.connectionLimit,
@@ -147,33 +148,11 @@ const createDefaultCoinOwnerRoleQuery = 'INSERT IGNORE INTO `role` (id, coin, na
 exports.pool = pool;
 
 /**
- * Sort types for the database.
- * Ascending or Descending.
- *
- * @type {{ASCENDING: string, DESCENDING: string}}
- */
-const SortType = {
-    ASCENDING: 'ASC',
-    DESCENDING: 'DESC'
-};
-exports.SortType = SortType;
-
-/**
  * Get a connection from the pool as a promise
  *
  * @returns {Promise<Connection>} The promise that resolves to a connection or rejects with an error
  */
-exports.getConnection = function() {
-    return new Promise((resolve, reject) => {
-        pool.getConnection(function (err, connection) {
-            if(err) {
-                return reject(err);
-            }
-            resolve(connection);
-        });
-    });
-
-};
+exports.getConnection = promisify(pool.getConnection.bind(pool));
 
 /**
  * Begin a transaction in a connection as a promise
@@ -182,14 +161,7 @@ exports.getConnection = function() {
  * @returns {Promise} A promise that resolves with no value once the transaction has begun or rejects with an error
  */
 exports.beginTransaction = function(connection) {
-    return new Promise(function(resolve, reject) {
-        connection.beginTransaction(function(err) {
-           if(err){
-               return reject(err);
-           }
-           return resolve();
-        });
-    });
+    return promisify(connection.beginTransaction.bind(connection))();
 };
 
 /**
@@ -199,14 +171,7 @@ exports.beginTransaction = function(connection) {
  * @returns {Promise} A promise that resolves with no value once the transaction has committed or rejects it with an error
  */
 exports.commitTransaction = function (connection) {
-    return new Promise(function (resolve, reject) {
-        connection.commit(function (err) {
-            if (err) {
-                return reject(err);
-            }
-            return resolve();
-        });
-    });
+    return promisify(connection.commit.bind(connection))();
 };
 
 /**
@@ -216,11 +181,7 @@ exports.commitTransaction = function (connection) {
  * @returns {Promise} A promise that resolves once the transaction is rolled back
  */
 exports.rollbackTransaction = function(connection) {
-    return new Promise(function(resolve, reject) {
-        connection.rollback(function() {
-            resolve();
-        });
-    });
+    return promisify(connection.rollback.bind(connection))();
 };
 
 /**
@@ -228,7 +189,7 @@ exports.rollbackTransaction = function(connection) {
  * Exit the process if an error occurs. Due to this function being executed only by the master process, that should
  * stop the entire program if it happens.
  */
-exports.setup = function () {
+exports.setup = async function () {
     const connection = mysql.createConnection({
         host: config.databaseInformation.host,
         user: config.databaseInformation.username,
@@ -236,7 +197,9 @@ exports.setup = function () {
         database: config.databaseInformation.name,
         multipleStatements: true
     });
-    const queries = [
+
+    // Queries that create the tables
+    const tableQueries = [
         createUserTableQuery,
         createCoinTableQuery,
         createEntryTableQuery,
@@ -248,46 +211,29 @@ exports.setup = function () {
         createUserRoleTableQuery,
         createRequestTableQuery
     ];
-    const promises = queries.map(function (query) {
-        return new Promise(function (resolve, reject) {
-            connection.query(query,function (err) {
-                if (err) {
-                    return reject(err);
-                }
-                return resolve();
-            });
-        })
-    });
-    return Promise.all(promises)
-        .then(function() {
-            return Promise.all(
-                [new Promise(function(resolve, reject) {
-                    connection.query(defaultCurrencyCreateQuery, [config.defaultCoin.name,
-                        config.defaultCoin.symbol,
-                        config.defaultCoin.name,
-                        config.defaultCoin.symbol
-                    ], function (err) {
-                        if (err) {
-                            return reject(err);
-                        }
-                        return resolve();
-                    });
-                }),
-                new Promise(function(resolve, reject) {
-                    connection.query(createDefaultCoinOwnerRoleQuery, function(err) {
-                        if (err) {
-                            return reject(err);
-                        }
-                        return resolve();
-                    });
-                })]
-            );
-        })
-        .then(function() {
-            return connection.destroy();
-        })
-        .catch(function(err) {
-            console.error(err);
-            process.exit(-1);
+    // Queries that insert default entries into the tables
+    const defaultQueries = [
+        promisify(connection.query.bind(connection))(defaultCurrencyCreateQuery, [
+            config.defaultCoin.name,
+            config.defaultCoin.symbol,
+            config.defaultCoin.name,
+            config.defaultCoin.symbol
+        ]),
+        promisify(connection.query.bind(connection))(createDefaultCoinOwnerRoleQuery)
+    ];
+
+    try{
+        const tablePromises = tableQueries.map(function (query) {
+            return promisify(connection.query.bind(connection))(query);
         });
+
+        await Promise.all(tablePromises);
+        await Promise.all(defaultQueries);
+        connection.destroy()
+    }
+    catch(err) {
+        console.error(err);
+        process.exit(-1);
+    }
+
 };
