@@ -10,7 +10,7 @@ router.post('/', controller.create);
 router.post('/acceptRequest', controller.acceptRequest);
 router.post('/declineRequest', controller.declineRequest);
 router.get('/search/requests/:previousId(\\d*)?', controller.searchRequests);
-router.get('/search/:previousId(\\d*)?', controller.searchTransactions);
+router.get('/search/:previousTransaction?', controller.searchTransactions);
 
 
 module.exports = router;

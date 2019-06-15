@@ -358,102 +358,126 @@ exports.searchRequests = async function (req, res) {
  * Handles searching for transactions that were sent to or from the user
  */
 exports.searchTransactions = async function (req, res) {
-    let connection;
-    try {
-        connection = await mysql.getConnection();
-
-        let transactionId;
-        if(Number.isSafeInteger(parseInt(req.params.previousId))) {
-            transactionId = req.params.previousId;
-        }
-        else {
-            transactionId = Number.MAX_SAFE_INTEGER;
-        }
-
-        /**
-         * Get the list of transactions to display, along with the corresponding coin and the other user beside the
-         * user requesting the list
-         */
-        let transactionsList = await knex('transaction')
-            .connection(connection)
-            .select('transaction.id',
-                'transaction.amount',
-                'transaction.timestamp',
-                'transaction.message',
-                'sender.id as sender_id',
-                'sender.email as sender_email',
-                'sender.name as sender_name',
-                knex.raw('bin_to_uuid(`sender`.`uuid`) as `sender_uuid`'),
-                'receiver.id as receiver_id',
-                'receiver.email as receiver_email',
-                'receiver.name as receiver_name',
-                knex.raw('bin_to_uuid(`receiver`.`uuid`) as `receiver_uuid`'),
-                'coin.name as coin_name',
-                'coin.symbol as coin_symbol',
-                knex.raw('bin_to_uuid(`coin`.`uuid`) as `coin_uuid`'))
-            .where(function() {
-                this.where('sender', req.session.user)
-                    .orWhere('receiver', req.session.user)
+    const transactionSchema = {
+        previousTransaction: Joi.string()
+            .uuid({
+                version: [
+                    'uuidv1'
+                ]
             })
-            .where('transaction.id', '<', transactionId)
-            .join('user as sender', 'transaction.sender', 'sender.id')
-            .join('user as receiver', 'transaction.receiver', 'receiver.id')
-            .join('coin', 'transaction.coin', 'coin.id')
-            .orderBy('timestamp', 'desc')
-            .limit(10);
-
-        // If not transactions are found, return an empty array with a last ID of 0 to signify there are no more
-        if (transactionsList.length === 0) {
-            return res.status(200).send({
-                transactions: [],
-                lastId: 0
-            })
+    };
+    Joi.validate(req.params, transactionSchema, async function (err, transactionInfo) {
+        if (err) {
+            return res.status(400).send({message: err.message});
         }
+        const {previousTransaction} = transactionInfo;
 
-        const lastId = transactionsList[transactionsList.length - 1].id;
+        let connection;
+        try {
+            connection = await mysql.getConnection();
 
-        // Map the information returned from the database into objects
-        transactionsList = transactionsList.map(function(transaction) {
-            const sentByUser = transaction.sender_id === req.session.user;
-            return {
-                amount: transaction.amount,
-                timestamp: transaction.timestamp,
-                message: transaction.message,
-                user: sentByUser ? {
-                    email: transaction.receiver_email,
-                    name: transaction.receiver_name,
-                    uuid: transaction.receiver_uuid
-                } : {
-                    email: transaction.sender_email,
-                    name: transaction.sender_name,
-                    uuid: transaction.sender_uuid
-                },
-                sent: sentByUser,
-                coin: {
-                    name: transaction.coin_name,
-                    symbol: transaction.coin_symbol,
-                    uuid: transaction.coin_uuid
-                }
+            let transactionId;
+            if(previousTransaction) {
+                ({id: transactionId} = await knex('transaction')
+                    .connection(connection)
+                    .select('id')
+                    .where('uuid', knex.raw('uuid_to_bin(?)', previousTransaction))
+                    .where(function() {
+                        this.where('sender', req.session.user)
+                            .orWhere('receiver', req.session.user)
+                    })
+                    .first() || {});
             }
-        });
+            else{
+                transactionId = Number.MAX_SAFE_INTEGER;
+            }
 
-        // Wrap the transaction list and last ID before sending it to the client
-        const message = {
-            transactions: transactionsList,
-            lastId: lastId
-        };
-        res.status(200).send(message);
+            if(transactionId === undefined) {
+                return res.status(400).send({message: 'Transaction UUID does not exist'})
+            }
 
-        connection.release();
-    }
-    catch (err) {
-        console.error(err);
-        res.status(500).send({message: 'An error occurred while retrieving the transactions. Please try again.'});
+            /**
+             * Get the list of transactions to display, along with the corresponding coin and the other user beside the
+             * user requesting the list
+             */
+            let transactionsList = await knex('transaction')
+                .connection(connection)
+                .select(knex.raw('bin_to_uuid(`transaction`.`uuid`) as `uuid`'),
+                    'transaction.amount',
+                    'transaction.timestamp',
+                    'transaction.message',
+                    'sender.id as sender_id',
+                    'sender.email as sender_email',
+                    'sender.name as sender_name',
+                    knex.raw('bin_to_uuid(`sender`.`uuid`) as `sender_uuid`'),
+                    'receiver.id as receiver_id',
+                    'receiver.email as receiver_email',
+                    'receiver.name as receiver_name',
+                    knex.raw('bin_to_uuid(`receiver`.`uuid`) as `receiver_uuid`'),
+                    'coin.name as coin_name',
+                    'coin.symbol as coin_symbol',
+                    knex.raw('bin_to_uuid(`coin`.`uuid`) as `coin_uuid`'))
+                .where(function() {
+                    this.where('sender', req.session.user)
+                        .orWhere('receiver', req.session.user)
+                })
+                .where('transaction.id', '<', transactionId)
+                .join('user as sender', 'transaction.sender', 'sender.id')
+                .join('user as receiver', 'transaction.receiver', 'receiver.id')
+                .join('coin', 'transaction.coin', 'coin.id')
+                .orderBy('timestamp', 'desc')
+                .limit(10);
 
-        if(connection) {
+            // If not transactions are found, return an empty array with a last ID of 0 to signify there are no more
+            if (transactionsList.length === 0) {
+                return res.status(200).send({
+                    transactions: []
+                })
+            }
+
+            // Map the information returned from the database into objects
+            transactionsList = transactionsList.map(function(transaction) {
+                const sentByUser = transaction.sender_id === req.session.user;
+                return {
+                    amount: transaction.amount,
+                    timestamp: transaction.timestamp,
+                    message: transaction.message,
+                    user: sentByUser ? {
+                        email: transaction.receiver_email,
+                        name: transaction.receiver_name,
+                        uuid: transaction.receiver_uuid
+                    } : {
+                        email: transaction.sender_email,
+                        name: transaction.sender_name,
+                        uuid: transaction.sender_uuid
+                    },
+                    sent: sentByUser,
+                    coin: {
+                        name: transaction.coin_name,
+                        symbol: transaction.coin_symbol,
+                        uuid: transaction.coin_uuid
+                    },
+                    uuid: transaction.uuid
+                }
+            });
+
+            // Wrap the transaction list and last ID before sending it to the client
+            const message = {
+                transactions: transactionsList
+            };
+            res.status(200).send(message);
+
             connection.release();
         }
-    }
+        catch (err) {
+            console.error(err);
+            res.status(500).send({message: 'An error occurred while retrieving the transactions. Please try again.'});
+
+            if(connection) {
+                connection.release();
+            }
+        }
+    });
 };
 
 /**
@@ -521,6 +545,7 @@ const handleCreateTransaction = async function (coinId, senderId, receiverId, am
             coin: coinId,
             amount: amount,
             message: message,
+            uuid: knex.raw('UUID_TO_BIN(UUID())'),
             timestamp: knex.raw('NOW(3)')
         });
 
