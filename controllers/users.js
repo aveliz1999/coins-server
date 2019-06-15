@@ -34,59 +34,39 @@ exports.create = function (req, res) {
         if (err) {
             return res.status(400).send({message: err.message});
         }
-        let connection;
+
         let userUuid;
-        try{
-            connection = await mysql.getConnection();
-            await mysql.beginTransaction(connection);
+        try {
+            await mysql.db.transaction(async transaction => {
+                // Create the user and get their database ID and their UUID
+                const userId = await transaction('user')
+                    .insert({
+                        email: userInfo.email,
+                        password: await encryptionUtil.bcryptHash(userInfo.password),
+                        name: userInfo.name,
+                        uuid: knex.raw('UUID_TO_BIN(UUID())')
+                    });
+                ({uuid: userUuid} = await transaction('user')
+                        .select(knex.raw('bin_to_uuid(`uuid`) as `uuid`'))
+                        .first()
+                );
 
-            // Create the user and get their generated unique ID
-            const userId = await knex('user')
-                .connection(connection)
-                .insert({
-                    email: userInfo.email,
-                    password: await encryptionUtil.bcryptHash(userInfo.password),
-                    name: userInfo.name,
-                    uuid: knex.raw('UUID_TO_BIN(UUID())')
-                });
-            userUuid = (await knex('user')
-                .connection(connection)
-                .select(knex.raw('bin_to_uuid(uuid) as `uuid`'))
-                .where('id', userId)
-                .first()).uuid;
-
-            // Create a coin entry for the user for the default coin
-            await knex('entry')
-                .connection(connection)
-                .insert({
-                    user: userId,
-                    coin: 1,
-                    amount: 0
-                });
-
-            // The first user is registered, assumed to be the administrator and given owner role for default coin
-            const {count: userNumber} = await knex('user')
-                .connection(connection)
-                .count('id as count')
-                .first();
-            if(userNumber === 1) {
-                await knex('user_role')
-                    .connection(connection)
+                // Create a coin entry for the user for the default coin
+                await transaction('entry')
                     .insert({
                         user: userId,
-                        role: 1
+                        coin: 1,
+                        amount: 0
                     });
-            }
+
+                await transaction.commit();
+            });
 
             await fsPromises.mkdir(`public/media/users/${userUuid}`, {recursive: true});
             await fsPromises.copyFile('public/media/users/default/thumbnail.jpg', `public/media/users/${userUuid}/thumbnail.jpg`);
             await fsPromises.copyFile('public/media/users/default/full.jpg',`public/media/users/${userUuid}/full.jpg`);
 
-            await mysql.commitTransaction(connection);
-
-            res.status(200).send({message: 'User created successfully'});
-
-            connection.release();
+            res.status(200).send({message: 'User created successfully.'});
         }
         catch(err) {
             if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.match(/(?<=key ').+(?=')/)[0] === 'email_UNIQUE') {
@@ -96,13 +76,8 @@ exports.create = function (req, res) {
                 res.status(500).send({message: 'An error occurred while registering. Please try again.'});
             }
 
-            if(connection) {
-                return connection.rollback(function() {
-                    connection.release();
-                    if(userUuid) {
-                        rimraf(`../public/media/users/${userUuid}`, function() {});
-                    }
-                });
+            if(userUuid) {
+                rimraf(`../public/media/users/${userUuid}`, function() {});
             }
         }
     });
