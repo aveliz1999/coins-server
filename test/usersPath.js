@@ -163,7 +163,7 @@ describe('Users path tests', function() {
                 await request(app)
                     .post('/users')
                     .send({email: "test@test.test", password: "this is a password", name: "Test Test"})
-                    .expect(200, {"message":"User created successfully"});
+                    .expect(200, {"message":"User created successfully."});
             });
 
             it('Does not allow duplicate emails', async function() {

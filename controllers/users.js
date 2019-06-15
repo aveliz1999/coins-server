@@ -175,7 +175,7 @@ exports.getRolesFromSession = async function(req, res) {
         const roles = await mysql.db('user_role')
             .select('role.name as role',
                 'role.level',
-                knex.raw('bin_to_uuid(`coin`.`uuid`) as `coin_uuid`'))
+                knex.raw('bin_to_uuid(`coin`.`uuid`) as `coin`'))
             .where('user', req.session.user)
             .join('role', 'role.id', 'user_role.role')
             .join('coin', 'coin.id', 'role.coin');

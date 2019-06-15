@@ -156,7 +156,7 @@ describe('Coins path tests', function() {
             });
 
             describe('Request', function() {
-                it('Crates coin successfully', async function() {
+                it('Creates coin successfully', async function() {
                     await agent
                         .post('/coins')
                         .send({name: "Test", symbol: "TST"})
