@@ -127,6 +127,10 @@ describe('Database setup', function() {
             message: {
                 type: 'char(64)',
                 nullable: 'NO'
+            },
+            uuid: {
+                type: 'binary(16)',
+                nullable: 'NO'
             }
         };
 
@@ -290,13 +294,16 @@ describe('Database setup', function() {
             .where('table_name', tableName)
             .where('table_schema', config.databaseInformation.name);
 
+        let columns = Object.keys(schema);
         for(let column of tableInfo) {
             expect(schema).to.have.property(column.name);
             const columnInfo = schema[column.name];
+            columns.splice(columns.indexOf(column), 1);
 
             expect(column.type).to.equal(columnInfo.type);
             expect(column.nullable).to.equal(columnInfo.nullable);
         }
+        expect(columns.length).to.equal(0);
     }
 
 });

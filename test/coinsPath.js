@@ -177,11 +177,11 @@ describe('Coins path tests', function() {
 
                     before(async function() {
                         connection = await mysql.getConnection();
-                        const {id} = (await knex('coin')
+                        const {id} = await knex('coin')
                             .connection(connection)
                             .select('id')
                             .where('uuid', knex.raw('uuid_to_bin(?)', [coinUuid]))
-                            .first());
+                            .first();
 
                         coinId = id;
 

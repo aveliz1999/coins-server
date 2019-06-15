@@ -548,6 +548,7 @@ describe('Transactions path tests', function() {
                                 coin: 1,
                                 amount: 1,
                                 message: '',
+                                uuid: knex.raw('UUID_TO_BIN(UUID())'),
                                 timestamp: knex.raw('NOW(3)')
                             });
 
