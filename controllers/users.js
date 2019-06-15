@@ -107,41 +107,34 @@ exports.login = function (req, res) {
     };
     Joi.validate(req.body, loginSchema, async function (err, userInfo) {
         if (err) {
-            res.status(400).send({message: err.message});
+            return res.status(400).send({message: err.message});
         }
-        else {
-            let connection;
-            try {
-                connection = await mysql.getConnection();
-                const user = await knex('user')
-                    .connection(connection)
-                    .select('id', 'password', knex.raw('bin_to_uuid(uuid) as uuid'))
-                    .where('email', userInfo.email)
-                    .first();
-                if (!user) {
-                    return res.status(400).send({message: 'Incorrect username or password.'})
-                }
-                const {id: userId, password: storedPassword, uuid} = user;
-
-                // Password comparison fails
-                if (!await encryptionUtil.bcryptCompare(userInfo.password, storedPassword)) {
-                    return res.status(400).send({message: 'Incorrect username or password.'})
-                }
-
-                req.session.user = userId;
-                res.cookie('authenticated', req.sessionID, {maxAge: 3600000, httpOnly: false});
-                res.status(200).send({userId: uuid});
-
-                connection.release();
+        try {
+            const user = await mysql.db('user')
+                .select('id', 'password', knex.raw('bin_to_uuid(`uuid`) as `uuid`'))
+                .where('email', userInfo.email)
+                .first();
+            if (!user) {
+                return res.status(400).send({message: 'Incorrect username or password.'})
             }
-            catch(err) {
-                console.error(err);
-                res.status(500).send({message: 'An error occurred while logging in. Please try again.'})
 
-                if(connection) {
-                    connection.release();
-                }
+            const {id: userId, password: storedPassword, uuid} = user;
+
+            console.log(userInfo);
+            console.log(user);
+
+            // Password comparison fails
+            if (!await encryptionUtil.bcryptCompare(userInfo.password, storedPassword)) {
+                return res.status(400).send({message: 'Incorrect username or password.'})
             }
+
+            req.session.user = userId;
+            res.cookie('authenticated', req.sessionID, {maxAge: 3600000, httpOnly: false});
+            res.status(200).send({userId: uuid});
+        }
+        catch(err) {
+            console.error(err);
+            res.status(500).send({message: 'An error occurred while logging in. Please try again.'})
         }
     });
 };
@@ -153,15 +146,11 @@ exports.login = function (req, res) {
  * @param res Response object
  */
 exports.getFromSession = async function (req, res) {
-    let connection;
     try {
-        connection = await mysql.getConnection();
-
-        const {email, name, uuid} = await knex('user')
-            .connection(connection)
-            .select('email', 'name', knex.raw('bin_to_uuid(uuid) as uuid'))
+        const {email, name, uuid} = await mysql.db('user')
+            .select('email', 'name', knex.raw('bin_to_uuid(`uuid`) as `uuid`'))
             .where('id', req.session.user)
-            .first();
+            .first() || {};
         if(uuid) {
             res.status(200).send({email, name, uuid});
         }
@@ -170,16 +159,10 @@ exports.getFromSession = async function (req, res) {
             delete req.session.user;
             res.status(400).send({message: 'Unknown user'});
         }
-
-        connection.release();
     }
     catch(err) {
         console.error(err);
         res.status(500).send({message: 'An error occurred while retrieving the user information. Please try again.'})
-
-        if(connection){
-            connection.release();
-        }
     }
 };
 
@@ -190,28 +173,20 @@ exports.getFromSession = async function (req, res) {
  * @param res Response object
  */
 exports.getRolesFromSession = async function(req, res) {
-    let connection;
     try {
-        connection = await mysql.getConnection();
-
         // Get the coin uuid, the role name, and the role level
-        const roles = await knex('user_role')
-            .connection(connection)
-            .select(knex.raw('bin_to_uuid(`coin`.`uuid`) as coin'), 'role.name as role', 'role.level')
+        const roles = await mysql.db('user_role')
+            .select('role.name as role',
+                'role.level',
+                knex.raw('bin_to_uuid(`coin`.`uuid`) as `coin_uuid`'))
             .where('user', req.session.user)
             .join('role', 'role.id', 'user_role.role')
             .join('coin', 'coin.id', 'role.coin');
         res.status(200).send(roles);
-
-        connection.release();
     }
     catch(err) {
         console.error(err);
         res.status(500).send({message: 'An error occurred while retrieving the user role information. Please try again.'});
-
-        if(connection){
-            connection.release();
-        }
     }
 };
 
@@ -226,7 +201,7 @@ exports.getRolesFromSession = async function(req, res) {
  */
 exports.search = function(req, res) {
     const searchSchema = {
-        name: Joi.string()
+        searchTerm: Joi.string()
             .max(50)
             .required()
     };
@@ -234,28 +209,34 @@ exports.search = function(req, res) {
         if (err) {
             return res.status(400).send({message: err.message});
         }
-        let connection;
-        try{
-            connection = await mysql.getConnection();
+        const {searchTerm} = userInfo;
 
-            const users = await knex('user')
-                .connection(connection)
-                .select('email', 'name', knex.raw('bin_to_uuid(uuid) as uuid'))
-                .where('name', 'like', userInfo.name + '%')
+        try{
+            const users = await mysql.db('user')
+                .select('email', 'name', knex.raw('bin_to_uuid(`uuid`) as `uuid`'))
                 .where('id', '!=', req.session.user)
-                .limit(10);
+                .where(function() {
+                    this.where('name', 'like', searchTerm + '%')
+                        .orWhere('email', 'like', searchTerm + '%')
+                })
+                .limit(10)
+                .orderBy('name', 'desc');
+
+            console.log(mysql.db('user')
+                .select('email', 'name', knex.raw('bin_to_uuid(`uuid`) as `uuid`'))
+                .where('id', '!=', req.session.user)
+                .where(function() {
+                    this.where('name', 'like', searchTerm + '%')
+                        .orWhere('email', 'like', searchTerm + '%')
+                })
+                .limit(10)
+                .orderBy('name', 'desc').toQuery());
 
             res.status(200).send(users);
-
-            connection.release();
         }
         catch(err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred while searching. Please try again.'});
-
-            if(connection){
-                connection.release();
-            }
         }
     });
 };
