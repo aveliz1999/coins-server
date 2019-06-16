@@ -204,71 +204,97 @@ exports.declineRequest = function (req, res) {
  * @param res Response object
  */
 exports.searchRequests = async function (req, res) {
-    try {
-        let requestId;
-        if (Number.isSafeInteger(parseInt(req.params.previousId))) {
-            requestId = req.params.previousId;
-        } else {
-            requestId = Number.MAX_SAFE_INTEGER;
-        }
-
-        // Get the requests, along with the requesting user and coin that was requested
-        let requestList = await mysql.db('request')
-            .select('request.id',
-                'request.amount',
-                'request.message',
-                knex.raw('bin_to_uuid(`request`.`uuid`) as `uuid`'),
-                'request.timestamp',
-                'user.email as user_email',
-                'user.name as user_name',
-                knex.raw('bin_to_uuid(`user`.`uuid`) as `user_uuid`'),
-                'coin.name as coin_name',
-                'coin.symbol as coin_symbol',
-                knex.raw('bin_to_uuid(`coin`.`uuid`) as `coin_uuid`')
-            )
-            .where('sender', req.session.user)
-            .where('request.id', '<', requestId)
-            .join('user', 'request.requester', 'user.id')
-            .join('coin', 'request.coin', 'coin.id')
-            .orderBy('timestamp', 'desc')
-            .limit(10);
-
-        // If no requests are found, return an empty array with a last ID of 0 to signify there are no more
-        if (requestList.length === 0) {
-            return res.status(200).send({
-                requests: []
+    const requestSchema = {
+        previousRequest: Joi.string()
+            .uuid({
+                version: [
+                    'uuidv1'
+                ]
             })
+    };
+    Joi.validate(req.params, requestSchema, async function (err, requestInfo) {
+        if (err) {
+            return res.status(400).send({message: err.message});
         }
+        const {previousRequest} = requestInfo;
 
-        // Map the information returned from the database into objects
-        requestList = requestList.map(function (request) {
-            return {
-                amount: request.amount,
-                message: request.message,
-                uuid: request.uuid,
-                user: {
-                    email: request.user_email,
-                    name: request.user_name,
-                    uuid: request.user_uuid
-                },
-                coin: {
-                    name: request.coin_name,
-                    symbol: request.coin_symbol,
-                    uuid: request.coin_uuid
-                },
-                timestamp: request.timestamp
+        try {
+            let requestId;
+            if (previousRequest) {
+                ({id: requestId} = await mysql.db('request')
+                    .select('id')
+                    .where('uuid', knex.raw('uuid_to_bin(?)', previousRequest))
+                    .where(function () {
+                        this.where('sender', req.session.user)
+                            .orWhere('receiver', req.session.user)
+                    })
+                    .first() || {});
+            } else {
+                requestId = Number.MAX_SAFE_INTEGER;
             }
-        });
 
-        // Wrap the request list and last ID before sending it to the client
-        const message = {
-            requests: requestList
-        };
-        res.status(200).send(message);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send({message: 'An error occurred while retrieving the requests. Please try again.'});
-    }
+            if (requestId === undefined) {
+                return res.status(400).send({message: 'Transaction UUID does not exist'})
+            }
+
+            // Get the requests, along with the requesting user and coin that was requested
+            let requestList = await mysql.db('request')
+                .select('request.id',
+                    'request.amount',
+                    'request.message',
+                    knex.raw('bin_to_uuid(`request`.`uuid`) as `uuid`'),
+                    'request.timestamp',
+                    'user.email as user_email',
+                    'user.name as user_name',
+                    knex.raw('bin_to_uuid(`user`.`uuid`) as `user_uuid`'),
+                    'coin.name as coin_name',
+                    'coin.symbol as coin_symbol',
+                    knex.raw('bin_to_uuid(`coin`.`uuid`) as `coin_uuid`')
+                )
+                .where('sender', req.session.user)
+                .where('request.id', '<', requestId)
+                .join('user', 'request.requester', 'user.id')
+                .join('coin', 'request.coin', 'coin.id')
+                .orderBy('timestamp', 'desc')
+                .limit(10);
+
+            // If no requests are found, return an empty array with a last ID of 0 to signify there are no more
+            if (requestList.length === 0) {
+                return res.status(200).send({
+                    requests: []
+                })
+            }
+
+            // Map the information returned from the database into objects
+            requestList = requestList.map(function (request) {
+                return {
+                    amount: request.amount,
+                    message: request.message,
+                    uuid: request.uuid,
+                    user: {
+                        email: request.user_email,
+                        name: request.user_name,
+                        uuid: request.user_uuid
+                    },
+                    coin: {
+                        name: request.coin_name,
+                        symbol: request.coin_symbol,
+                        uuid: request.coin_uuid
+                    },
+                    timestamp: request.timestamp
+                }
+            });
+
+            // Wrap the request list and last ID before sending it to the client
+            const message = {
+                requests: requestList
+            };
+            res.status(200).send(message);
+        } catch (err) {
+            console.error(err);
+            res.status(500).send({message: 'An error occurred while retrieving the requests. Please try again.'});
+        }
+    });
 };
 
 /**
