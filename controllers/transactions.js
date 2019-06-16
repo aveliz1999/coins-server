@@ -260,9 +260,7 @@ exports.searchRequests = async function (req, res) {
 
             // If no requests are found, return an empty array with a last ID of 0 to signify there are no more
             if (requestList.length === 0) {
-                return res.status(200).send({
-                    requests: []
-                })
+                return res.status(200).send([]);
             }
 
             // Map the information returned from the database into objects
@@ -285,11 +283,7 @@ exports.searchRequests = async function (req, res) {
                 }
             });
 
-            // Wrap the request list and last ID before sending it to the client
-            const message = {
-                requests: requestList
-            };
-            res.status(200).send(message);
+            res.status(200).send(requestList);
         } catch (err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred while retrieving the requests. Please try again.'});
@@ -367,9 +361,7 @@ exports.searchTransactions = async function (req, res) {
 
             // If not transactions are found, return an empty array with a last ID of 0 to signify there are no more
             if (transactionsList.length === 0) {
-                return res.status(200).send({
-                    transactions: []
-                })
+                return res.status(200).send([]);
             }
 
             // Map the information returned from the database into objects
@@ -398,11 +390,7 @@ exports.searchTransactions = async function (req, res) {
                 }
             });
 
-            // Wrap the transaction list and last ID before sending it to the client
-            const message = {
-                transactions: transactionsList
-            };
-            res.status(200).send(message);
+            res.status(200).send(transactionsList);
         } catch (err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred while retrieving the transactions. Please try again.'});
