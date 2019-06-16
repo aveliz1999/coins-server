@@ -10,7 +10,7 @@ const knex = require('knex')({client: "mysql"});
  * @param req Request object
  * @param res Response object
  */
-exports.create = function(req, res) {
+exports.create = function (req, res) {
     const transactionSchema = {
         target: Joi.string()
             .uuid({
@@ -44,83 +44,53 @@ exports.create = function(req, res) {
 
         const userId = req.session.user;
         const amount = transactionInfo.amount;
-        let connection;
-
         try {
-            connection = await mysql.getConnection();
-
-            // Get the database ID of the coin and target used by their UUID
-            let {id: coinId} = await knex('coin')
-                .connection(connection)
+            // Get the database ID of the coin and target user by their UUID
+            let {id: coinId} = await mysql.db('coin')
                 .select('id')
                 .where('uuid', knex.raw('uuid_to_bin(?)', [transactionInfo.coin]))
                 .first() || {};
-            let {id: targetId} = await knex('user')
-                .connection(connection)
+            let {id: targetId} = await mysql.db('user')
                 .select('id')
                 .where('uuid', knex.raw('uuid_to_bin(?)', [transactionInfo.target]))
                 .first() || {};
 
             // Check that the coin and target were valid, and that the user and target aren't the same
-            if(!coinId) {
+            if (!coinId) {
                 return res.status(400).send({message: 'Please enter a valid coin'});
-            }
-            else if (!targetId) {
+            } else if (!targetId) {
                 return res.status(400).send({message: 'Please enter a valid target user'});
-            }
-            else if (targetId === userId) {
+            } else if (targetId === userId) {
                 return res.status(400).send({message: 'You cannot send to yourself'});
             }
 
             // If the charging value is true, create a request instead of a transaction
             if (transactionInfo.charging) {
-                await knex('request')
-                    .connection(connection)
+                await mysql.db('request')
                     .insert({
                         requester: userId,
                         sender: targetId,
                         coin: coinId,
-                        amount: amount,
+                        amount,
                         message: transactionInfo.message,
                         uuid: knex.raw('UUID_TO_BIN(UUID())'),
                         timestamp: knex.raw('NOW(3)')
                     });
                 res.status(200).send({message: 'Sent request successfully.'});
-                return connection.release();
             }
 
-            await mysql.beginTransaction(connection);
-
             // Attempt to create the transaction and update the sender and receiver entry amounts
-            const created = await handleCreateTransaction(coinId, userId, targetId, amount, transactionInfo.message, connection);
+            await handleCreateTransaction(coinId, userId, targetId, amount, transactionInfo.message);
 
-            // The transaction was not created due to the sender not having enough for this transaction
-            if (!created) {
-                await mysql.rollbackTransaction(connection);
-                connection.release();
+            res.status(200).send({message: 'Successfully created the transaction'});
+        } catch (err) {
+            if (err.message === 'Insufficient coins') {
                 return res.status(400).send({message: 'Not enough of this coin to complete this transaction'});
             }
 
-            await mysql.commitTransaction(connection);
-
-            res.status(200).send({message: 'Successfully created the transaction'});
-            connection.release();
-        }
-        catch (err) {
-            res.status(500).send({message: 'An error occurred creating the transaction. Please try again.'});
             console.error(err);
-
-            if (connection) {
-                try {
-                    await mysql.rollbackTransaction(connection);
-                    connection.release();
-                }
-                catch (err) {
-                    console.error(err);
-                }
-            }
+            res.status(500).send({message: 'An error occurred creating the transaction. Please try again.'});
         }
-
     });
 };
 
@@ -131,7 +101,7 @@ exports.create = function(req, res) {
  * @param req Request object
  * @param res Response object
  */
-exports.acceptRequest = function(req, res) {
+exports.acceptRequest = function (req, res) {
     const transactionSchema = {
         requestId: Joi.string()
             .uuid({
@@ -146,61 +116,34 @@ exports.acceptRequest = function(req, res) {
             return res.status(400).send({message: err.message});
         }
 
-        let connection;
         try {
-            connection = await mysql.getConnection();
-
             // Get the request information
-            const requestResult = await knex('request')
-                .connection(connection)
+            const requestResult = await mysql.db('request')
                 .select('id', 'coin', 'sender', 'requester', 'amount', 'message')
                 .where('uuid', knex.raw('uuid_to_bin(?)', [requestInfo.requestId]))
                 .first();
 
             // Check if it's a valid request that belongs to the user
             if (requestResult && requestResult.sender === req.session.user) {
-                await mysql.beginTransaction(connection);
-
                 // Attempt to create the transaction and update the sender and receiver entry amounts
-                const created = await handleCreateTransaction(requestResult.coin, requestResult.sender, requestResult.requester, requestResult.amount, requestResult.message, connection);
-
-                // The transaction was not created due to the sender not having enough for this transaction
-                if (!created) {
-                    await mysql.rollbackTransaction(connection);
-                    connection.release();
-                    return res.status(400).send({message: 'Not enough of this coin to complete this transaction'});
-                }
+                await handleCreateTransaction(requestResult.coin, requestResult.sender, requestResult.requester, requestResult.amount, requestResult.message);
 
                 // Delete the request once the transaction is made
-                await knex('request')
-                    .connection(connection)
+                await mysql.db('request')
                     .where('id', requestResult.id)
                     .del();
 
-                await mysql.commitTransaction(connection);
-
                 res.status(200).send({message: 'Successfully created the transaction'});
-            }
-            else {
+            } else {
                 res.status(400).send({message: 'No request with that ID under your user'});
             }
-
-            connection.release();
-        }
-        catch (err) {
-            res.status(500).send({message: 'An error occurred creating the transaction. Please try again.'});
-            console.error(err);
-
-            if (connection) {
-                try {
-                    await mysql.rollbackTransaction(connection);
-                    connection.release();
-                }
-                catch (err) {
-                    console.error(err);
-                }
+        } catch (err) {
+            if (err.message === 'Insufficient coins') {
+                return res.status(400).send({message: 'Not enough of this coin to complete this transaction'});
             }
 
+            console.error(err);
+            res.status(500).send({message: 'An error occurred creating the transaction. Please try again.'});
         }
     });
 };
@@ -227,39 +170,26 @@ exports.declineRequest = function (req, res) {
             return res.status(400).send({message: err.message});
         }
 
-        let connection;
         try {
-            connection = await mysql.getConnection();
-
             // Get the request
-            const requestResult = await knex('request')
-                .connection(connection)
+            const requestResult = await mysql.db('request')
                 .select('id', 'sender')
                 .where('uuid', knex.raw('uuid_to_bin(?)', [requestInfo.requestId]))
                 .first();
 
             // If it's a valid request, delete it
             if (requestResult && requestResult.sender === req.session.user) {
-                await knex('request')
-                    .connection(connection)
+                await mysql.db('request')
                     .where('id', requestResult.id)
                     .del();
 
                 res.status(200).send({message: 'Successfully declined the request'});
-            }
-            else {
+            } else {
                 res.status(400).send({message: 'No request with that ID under your user'});
             }
-
-            connection.release();
-        }
-        catch (err) {
+        } catch (err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred deleting the request. Please try again.'});
-
-            if(connection) {
-                connection.release();
-            }
         }
 
     });
@@ -274,20 +204,16 @@ exports.declineRequest = function (req, res) {
  * @param res Response object
  */
 exports.searchRequests = async function (req, res) {
-    let connection;
     try {
-        connection = await mysql.getConnection();
         let requestId;
-        if(Number.isSafeInteger(parseInt(req.params.previousId))) {
+        if (Number.isSafeInteger(parseInt(req.params.previousId))) {
             requestId = req.params.previousId;
-        }
-        else {
+        } else {
             requestId = Number.MAX_SAFE_INTEGER;
         }
 
         // Get the requests, along with the requesting user and coin that was requested
-        let requestList = await knex('request')
-            .connection(connection)
+        let requestList = await mysql.db('request')
             .select('request.id',
                 'request.amount',
                 'request.message',
@@ -304,19 +230,18 @@ exports.searchRequests = async function (req, res) {
             .where('request.id', '<', requestId)
             .join('user', 'request.requester', 'user.id')
             .join('coin', 'request.coin', 'coin.id')
+            .orderBy('timestamp', 'desc')
             .limit(10);
 
         // If no requests are found, return an empty array with a last ID of 0 to signify there are no more
         if (requestList.length === 0) {
             return res.status(200).send({
-                requests: [],
-                lastId: 0
+                requests: []
             })
         }
 
         // Map the information returned from the database into objects
-        const lastId = requestList[requestList.length - 1].id;
-        requestList = requestList.map(function(request) {
+        requestList = requestList.map(function (request) {
             return {
                 amount: request.amount,
                 message: request.message,
@@ -337,20 +262,12 @@ exports.searchRequests = async function (req, res) {
 
         // Wrap the request list and last ID before sending it to the client
         const message = {
-            requests: requestList,
-            lastId: lastId
+            requests: requestList
         };
         res.status(200).send(message);
-
-        connection.release();
-    }
-    catch (err) {
+    } catch (err) {
         console.error(err);
         res.status(500).send({message: 'An error occurred while retrieving the requests. Please try again.'});
-
-        if(connection) {
-            connection.release();
-        }
     }
 };
 
@@ -372,27 +289,22 @@ exports.searchTransactions = async function (req, res) {
         }
         const {previousTransaction} = transactionInfo;
 
-        let connection;
         try {
-            connection = await mysql.getConnection();
-
             let transactionId;
-            if(previousTransaction) {
-                ({id: transactionId} = await knex('transaction')
-                    .connection(connection)
+            if (previousTransaction) {
+                ({id: transactionId} = await mysql.db('transaction')
                     .select('id')
                     .where('uuid', knex.raw('uuid_to_bin(?)', previousTransaction))
-                    .where(function() {
+                    .where(function () {
                         this.where('sender', req.session.user)
                             .orWhere('receiver', req.session.user)
                     })
                     .first() || {});
-            }
-            else{
+            } else {
                 transactionId = Number.MAX_SAFE_INTEGER;
             }
 
-            if(transactionId === undefined) {
+            if (transactionId === undefined) {
                 return res.status(400).send({message: 'Transaction UUID does not exist'})
             }
 
@@ -400,8 +312,7 @@ exports.searchTransactions = async function (req, res) {
              * Get the list of transactions to display, along with the corresponding coin and the other user beside the
              * user requesting the list
              */
-            let transactionsList = await knex('transaction')
-                .connection(connection)
+            let transactionsList = await mysql.db('transaction')
                 .select(knex.raw('bin_to_uuid(`transaction`.`uuid`) as `uuid`'),
                     'transaction.amount',
                     'transaction.timestamp',
@@ -417,7 +328,7 @@ exports.searchTransactions = async function (req, res) {
                     'coin.name as coin_name',
                     'coin.symbol as coin_symbol',
                     knex.raw('bin_to_uuid(`coin`.`uuid`) as `coin_uuid`'))
-                .where(function() {
+                .where(function () {
                     this.where('sender', req.session.user)
                         .orWhere('receiver', req.session.user)
                 })
@@ -436,7 +347,7 @@ exports.searchTransactions = async function (req, res) {
             }
 
             // Map the information returned from the database into objects
-            transactionsList = transactionsList.map(function(transaction) {
+            transactionsList = transactionsList.map(function (transaction) {
                 const sentByUser = transaction.sender_id === req.session.user;
                 return {
                     amount: transaction.amount,
@@ -466,16 +377,9 @@ exports.searchTransactions = async function (req, res) {
                 transactions: transactionsList
             };
             res.status(200).send(message);
-
-            connection.release();
-        }
-        catch (err) {
+        } catch (err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred while retrieving the transactions. Please try again.'});
-
-            if(connection) {
-                connection.release();
-            }
         }
     });
 };
@@ -488,66 +392,57 @@ exports.searchTransactions = async function (req, res) {
  * @param {Number} receiverId The id of the user receiving the coins
  * @param {Number} amount The amount of coins being sent
  * @param {String} message The message sent with the transaction
- * @param {Connection} connection The connection with the ongoing transaction
  * @returns {Promise<boolean>} If the transaction was successful, or false if the user didn't have enough to send
  */
-const handleCreateTransaction = async function (coinId, senderId, receiverId, amount, message, connection) {
-    // Get the coin entry of the sender
-    const senderEntry = await knex('entry')
-        .connection(connection)
-        .select('id', 'amount')
-        .where('coin', coinId)
-        .where('user', senderId)
-        .first();
+const handleCreateTransaction = async function (coinId, senderId, receiverId, amount, message) {
+    return mysql.db.transaction(async transaction => {
+        // Get the coin entry of the sender
+        const senderEntry = await transaction('entry')
+            .select('id', 'amount')
+            .where('coin', coinId)
+            .where('user', senderId)
+            .first();
+        // Check if the sender has enough of the coin (or has any at all)
+        if (!senderEntry || senderEntry.amount < amount) {
+            throw Error('Insufficient coins');
+        }
 
-    // Check if the sender has enough of the coin (or has any at all)
-    if (!senderEntry || senderEntry.amount < amount) {
-        return false;
-    }
+        // Get the coin entry of the receiver
+        const receiverEntry = await transaction('entry')
+            .select('id', 'amount')
+            .where('coin', coinId)
+            .where('user', receiverId)
+            .first();
 
-    // Get the coin entry of the receiver
-    const receiverEntry = await knex('entry')
-        .connection(connection)
-        .select('id', 'amount')
-        .where('coin', coinId)
-        .where('user', receiverId)
-        .first();
+        // Update the sender and receiver's amount in their entry
+        await transaction('entry')
+            .update({amount: senderEntry.amount - amount})
+            .where('id', senderEntry.id);
 
-    // Update the sender and receiver's amount in their entry
-    await knex('entry')
-        .connection(connection)
-        .update({amount: senderEntry.amount - amount})
-        .where('id', senderEntry.id);
+        // Update the receiver's entry if they have one, or create a new one with the amount if they don't
+        if (receiverEntry) {
+            await transaction('entry')
+                .update({amount: receiverEntry.amount + amount})
+                .where('id', receiverEntry.id);
+        } else {
+            await transaction('entry')
+                .insert({
+                    user: receiverId,
+                    coin: coinId,
+                    amount
+                });
+        }
 
-    // Update the receiver's entry if they have one, or create a new one with the amount if they don't
-    if(receiverEntry) {
-        await knex('entry')
-            .connection(connection)
-            .update({amount: receiverEntry.amount + amount})
-            .where('id', receiverEntry.id);
-    }
-    else {
-        await knex('entry')
-            .connection(connection)
+        // Create the transaction
+        await transaction('transaction')
             .insert({
-                user: receiverId,
+                sender: senderId,
+                receiver: receiverId,
                 coin: coinId,
-                amount: amount
+                amount,
+                message,
+                uuid: knex.raw('UUID_TO_BIN(UUID())'),
+                timestamp: knex.raw('NOW(3)')
             });
-    }
-
-    // Create the transaction
-    await knex('transaction')
-        .connection(connection)
-        .insert({
-            sender: senderId,
-            receiver: receiverId,
-            coin: coinId,
-            amount: amount,
-            message: message,
-            uuid: knex.raw('UUID_TO_BIN(UUID())'),
-            timestamp: knex.raw('NOW(3)')
-        });
-
-    return true;
+    });
 };
