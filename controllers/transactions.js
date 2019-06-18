@@ -256,7 +256,7 @@ exports.searchRequests = async function (req, res) {
                 .join('user', 'request.requester', 'user.id')
                 .join('coin', 'request.coin', 'coin.id')
                 .orderBy('timestamp', 'desc')
-                .limit(10);
+                .limit(11);
 
             // If no requests are found, return an empty array with a last ID of 0 to signify there are no more
             if (requestList.length === 0) {
@@ -283,7 +283,10 @@ exports.searchRequests = async function (req, res) {
                 }
             });
 
-            res.status(200).send(requestList);
+            res.status(200).send({
+                requests: requestList,
+                moreAvailable: requestList.length === 11
+            });
         } catch (err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred while retrieving the requests. Please try again.'});
@@ -357,7 +360,7 @@ exports.searchTransactions = async function (req, res) {
                 .join('user as receiver', 'transaction.receiver', 'receiver.id')
                 .join('coin', 'transaction.coin', 'coin.id')
                 .orderBy('timestamp', 'desc')
-                .limit(10);
+                .limit(11);
 
             // If not transactions are found, return an empty array with a last ID of 0 to signify there are no more
             if (transactionsList.length === 0) {
@@ -390,7 +393,10 @@ exports.searchTransactions = async function (req, res) {
                 }
             });
 
-            res.status(200).send(transactionsList);
+            res.status(200).send({
+                transactions: transactionsList,
+                moreAvailable: transactionsList.length === 11
+            });
         } catch (err) {
             console.error(err);
             res.status(500).send({message: 'An error occurred while retrieving the transactions. Please try again.'});
