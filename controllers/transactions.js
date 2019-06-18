@@ -226,7 +226,7 @@ exports.searchRequests = async function (req, res) {
                     .where('uuid', knex.raw('uuid_to_bin(?)', previousRequest))
                     .where(function () {
                         this.where('sender', req.session.user)
-                            .orWhere('receiver', req.session.user)
+                            .orWhere('requester', req.session.user)
                     })
                     .first() || {});
             } else {
@@ -260,7 +260,10 @@ exports.searchRequests = async function (req, res) {
 
             // If no requests are found, return an empty array with a last ID of 0 to signify there are no more
             if (requestList.length === 0) {
-                return res.status(200).send([]);
+                return res.status(200).send({
+                    requests: [],
+                    moreAvailable: false
+                });
             }
 
             // Map the information returned from the database into objects
@@ -364,7 +367,10 @@ exports.searchTransactions = async function (req, res) {
 
             // If not transactions are found, return an empty array with a last ID of 0 to signify there are no more
             if (transactionsList.length === 0) {
-                return res.status(200).send([]);
+                return res.status(200).send({
+                    transactions: [],
+                    moreAvailable: false
+                });
             }
 
             // Map the information returned from the database into objects
