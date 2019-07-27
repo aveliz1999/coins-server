@@ -5,7 +5,8 @@ const logger = require('morgan');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 const mysql = require('./database/mysql');
-const config = require('./config/' + process.env.NODE_ENV + '.json');
+const env = process.env.NODE_ENV || 'development';
+const config = require(__dirname + '/../config/config.json')[env];
 
 const app = express();
 

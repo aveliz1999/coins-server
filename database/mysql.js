@@ -1,27 +1,28 @@
 const mysql = require('mysql');
-const config = require('../config/' + process.env.NODE_ENV + '.json');
+const env = process.env.NODE_ENV || 'development';
+const config = require(__dirname + '/../config/config.json')[env];
 const promisify = require('util').promisify;
 const knex = require('knex');
 
 const pool = mysql.createPool({
-    connectionLimit: config.databaseInformation.connectionLimit,
-    host: config.databaseInformation.host,
-    user: config.databaseInformation.username,
-    password: config.databaseInformation.password,
-    database: config.databaseInformation.name
+    connectionLimit: config.poolLimit,
+    host: config.host,
+    user: config.username,
+    password: config.password,
+    database: config.database
 });
 
 db = knex({
     client: 'mysql',
     connection: {
-        host: config.databaseInformation.host,
-        user: config.databaseInformation.username,
-        password: config.databaseInformation.password,
-        database: config.databaseInformation.name
+        host: config.host,
+        user: config.username,
+        password: config.password,
+        database: config.database
     },
     pool: {
         min: 0,
-        max: config.databaseInformation.connectionLimit
+        max: config.poolLimit
     }
 });
 
@@ -208,10 +209,10 @@ exports.rollbackTransaction = function(connection) {
  */
 exports.setup = async function () {
     const connection = mysql.createConnection({
-        host: config.databaseInformation.host,
-        user: config.databaseInformation.username,
-        password: config.databaseInformation.password,
-        database: config.databaseInformation.name,
+        host: config.host,
+        user: config.username,
+        password: config.password,
+        database: config.database,
         multipleStatements: true
     });
 
