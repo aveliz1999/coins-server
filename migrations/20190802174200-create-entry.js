@@ -1,20 +1,32 @@
 'use strict';
 module.exports = {
     up: (queryInterface, Sequelize) => {
-        return queryInterface.createTable('Coins', {
+        return queryInterface.createTable('Entries', {
             id: {
                 allowNull: false,
                 autoIncrement: true,
                 primaryKey: true,
                 type: Sequelize.INTEGER.UNSIGNED
             },
-            name: {
+            user_id: {
                 allowNull: false,
-                type: Sequelize.STRING(45)
+                type: Sequelize.INTEGER.UNSIGNED,
+                references: {
+                    model: 'Users',
+                    key: 'id'
+                }
             },
-            symbol: {
+            coin_id: {
                 allowNull: false,
-                type: Sequelize.STRING(3)
+                type: Sequelize.INTEGER.UNSIGNED,
+                references: {
+                    model: 'Coins',
+                    key: 'id'
+                }
+            },
+            amount: {
+                allowNull: false,
+                type: Sequelize.INTEGER.UNSIGNED
             },
             createdAt: {
                 allowNull: false,
@@ -27,6 +39,6 @@ module.exports = {
         });
     },
     down: (queryInterface, Sequelize) => {
-        return queryInterface.dropTable('Coins');
+        return queryInterface.dropTable('Entries');
     }
 };
