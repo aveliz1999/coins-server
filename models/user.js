@@ -32,8 +32,11 @@ module.exports = (sequelize, DataTypes) => {
     User.associate = function (models) {
         // associations can be defined here
     };
-    User.prototype.get = function () {
+    User.prototype.get = function (key) {
         const values = Object.assign({}, this.dataValues);
+        if (key && values[key]) {
+            return values[key]
+        }
         delete values.password;
         return values;
     };
