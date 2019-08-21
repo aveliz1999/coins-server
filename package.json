@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prestart": "sequelize db:migrate && sequelize db:seed:all",
     "start": "node ./bin/www",
     "test": "NODE_ENV=testing mocha"
   },

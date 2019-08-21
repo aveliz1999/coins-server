@@ -10,7 +10,7 @@ router.post('/login', controller.login);
 router.use(authenticatedMiddleware);
 
 
-router.get('/', controller.getFromSession);
+router.get('/', controller.refresh);
 router.get('/roles', controller.getRolesFromSession);
 router.get('/search/:searchTerm', controller.search);
 
