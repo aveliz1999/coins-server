@@ -7,10 +7,8 @@ const controller = require('../controllers/transactions');
 router.use(authenticatedMiddleware);
 
 router.post('/', controller.create);
-router.post('/acceptRequest', controller.acceptRequest);
-router.post('/declineRequest', controller.declineRequest);
-router.get('/search/requests/:previousRequest?', controller.searchRequests);
-router.get('/search/:previousTransaction?', controller.searchTransactions);
+router.get('/:id', controller.get);
+router.get('/search/:previousTransactionId?', controller.search);
 
 
 module.exports = router;

@@ -4,13 +4,9 @@ const Op = require('sequelize').Op;
 const sequelize = db.sequelize;
 const User = db.User;
 const Entry = db.Entry;
-const Role = db.Role;
 const UserRole = db.UserRole;
-const mysql = require('../database/mysql');
-const knex = require('knex')({client: "mysql"});
 const fsPromises = require('fs').promises;
 const encryptionUtil = require('../util/encryption');
-const rimraf = require('rimraf');
 
 /**
  * Register new user with information sent in a POST request to /users.
