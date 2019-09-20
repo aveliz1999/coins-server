@@ -46,10 +46,12 @@ exports.create = async function (req, res) {
             transaction
         });
         if (!targetEntry) {
-            return res.status(400).send({message: 'No target found for that user ID and coin.'});
+            res.status(400).send({message: 'No target found for that user ID and coin.'});
+            return transaction.rollback();
         }
         if (targetEntry.user.id === req.session.user) {
-            return res.status(400).send({message: 'You cannot target yourself.'})
+            res.status(400).send({message: 'You cannot target yourself.'});
+            return transaction.rollback();
         }
 
         const userEntry = await Entry.findOne({
@@ -60,7 +62,8 @@ exports.create = async function (req, res) {
             transaction
         });
         if (!userEntry || userEntry.amount < transactionInfo.amount) {
-            return res.status(400).send({message: 'You do not have enough coins.'})
+            res.status(400).send({message: 'You do not have enough coins.'});
+            return transaction.rollback();
         }
 
         await userEntry.update({
