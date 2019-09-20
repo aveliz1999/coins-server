@@ -145,23 +145,23 @@ exports.search = async function (req, res) {
             .greater(0)
     });
     if (!req.params.previousTransactionId) {
-        req.params.previousTransactionId = Number.MAX_SAFE_INTEGER
+        req.params.previousTransactionId = Number.MAX_SAFE_INTEGER;
     }
 
     try {
         const transactionInfo = await transactionSchema.validate(req.params);
 
-        const transactions = Transaction.findAll({
+        const transactions = await Transaction.findAll({
             where: {
                 [Op.or]: {
                     sender_id: req.session.user,
                     receiver_id: req.session.user
                 },
                 id: {
-                    [Op.lt]: transactionInfo.previousTransactionId
+                    [Op.lte]: transactionInfo.previousTransactionId
                 }
             },
-            order: ['createdAt', 'DESC'],
+            order: [['createdAt', 'DESC']],
             limit: 11
         });
 
@@ -174,7 +174,7 @@ exports.search = async function (req, res) {
 
         return res.send({
             transactions: transactions.slice(0, 10),
-            nextId: transactions[11] || 0
+            nextId: (transactions[10] || {id: 0}).id
         })
     } catch (err) {
         if (err.isJoi && err.name === 'ValidationError') {
